@@ -1,0 +1,45 @@
+using System.Text.Json.Serialization;
+
+namespace MemoryGraphVisualizer.Models;
+
+/// <summary>
+/// Represents an entity (node) in the memory graph.
+/// </summary>
+public class GraphNode
+{
+    /// <summary>
+    /// Unique identifier for the node (entity name).
+    /// </summary>
+    [JsonPropertyName("id")]
+    public string Id { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Display label for the node.
+    /// </summary>
+    [JsonPropertyName("label")]
+    public string Label { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Type of entity (e.g., "module", "class", "function", "person").
+    /// </summary>
+    [JsonPropertyName("entityType")]
+    public string EntityType { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Collection of observations associated with this entity.
+    /// </summary>
+    [JsonPropertyName("observations")]
+    public List<Observation> Observations { get; set; } = new();
+
+    /// <summary>
+    /// Color assigned based on entity type (computed for visualization).
+    /// </summary>
+    [JsonPropertyName("color")]
+    public string Color { get; set; } = "#95a5a6";
+
+    /// <summary>
+    /// Node size for visualization (computed based on connections or observations).
+    /// </summary>
+    [JsonPropertyName("size")]
+    public int Size { get; set; } = 30;
+}
