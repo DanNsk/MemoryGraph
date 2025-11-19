@@ -1,0 +1,151 @@
+@page
+@model IndexModel
+@{
+    ViewData["Title"] = "Graph Visualization";
+}
+
+<div class="row g-3">
+    <!-- Controls Panel -->
+    <div class="col-12">
+        <div class="card">
+            <div class="card-body py-2">
+                <div class="row align-items-center g-2">
+                    <!-- Database Selector -->
+                    <div class="col-md-3">
+                        <label for="databaseSelect" class="form-label small mb-1">Database</label>
+                        @if (Model.Databases.Count > 0)
+                        {
+                            <select id="databaseSelect" class="form-select form-select-sm">
+                                <option value="">-- Select a database --</option>
+                                @foreach (var db in Model.Databases)
+                                {
+                                    <option value="@db.FileName" data-size="@db.FileSizeFormatted">
+                                        @db.DisplayName (@db.FileSizeFormatted)
+                                    </option>
+                                }
+                            </select>
+                        }
+                        else
+                        {
+                            <div class="text-muted small">
+                                <i class="bi bi-info-circle"></i> No databases found in memory folder
+                            </div>
+                        }
+                    </div>
+
+                    <!-- Layout Selector -->
+                    <div class="col-md-2">
+                        <label for="layoutSelect" class="form-label small mb-1">Layout</label>
+                        <select id="layoutSelect" class="form-select form-select-sm" disabled>
+                            <option value="cose" @(Model.DefaultLayout == "cose" ? "selected" : "")>COSE (Force-directed)</option>
+                            <option value="circle" @(Model.DefaultLayout == "circle" ? "selected" : "")>Circle</option>
+                            <option value="grid" @(Model.DefaultLayout == "grid" ? "selected" : "")>Grid</option>
+                            <option value="breadthfirst" @(Model.DefaultLayout == "breadthfirst" ? "selected" : "")>Breadthfirst</option>
+                            <option value="concentric" @(Model.DefaultLayout == "concentric" ? "selected" : "")>Concentric</option>
+                        </select>
+                    </div>
+
+                    <!-- Search -->
+                    <div class="col-md-3">
+                        <label for="searchInput" class="form-label small mb-1">Search</label>
+                        <div class="input-group input-group-sm">
+                            <input type="text" id="searchInput" class="form-control" placeholder="Search nodes..." disabled>
+                            <button id="clearSearchBtn" class="btn btn-outline-secondary" type="button" disabled>
+                                <i class="bi bi-x"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Actions -->
+                    <div class="col-md-4">
+                        <label class="form-label small mb-1">&nbsp;</label>
+                        <div class="btn-group btn-group-sm d-block">
+                            <button id="fitBtn" class="btn btn-outline-primary" disabled title="Fit to screen">
+                                <i class="bi bi-arrows-fullscreen"></i> Fit
+                            </button>
+                            <button id="resetBtn" class="btn btn-outline-primary" disabled title="Reset view">
+                                <i class="bi bi-arrow-counterclockwise"></i> Reset
+                            </button>
+                            <button id="refreshBtn" class="btn btn-outline-secondary" disabled title="Reload graph">
+                                <i class="bi bi-arrow-repeat"></i> Refresh
+                            </button>
+                            <button id="exportBtn" class="btn btn-outline-success" disabled title="Export as PNG">
+                                <i class="bi bi-download"></i> Export
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-3 mt-1">
+    <!-- Graph Container -->
+    <div class="col-md-9">
+        <div class="card graph-card">
+            <div class="card-body p-0 position-relative">
+                <!-- Loading Overlay -->
+                <div id="loadingOverlay" class="loading-overlay d-none">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                    <div class="mt-2">Loading graph...</div>
+                </div>
+
+                <!-- Graph Canvas -->
+                <div id="cy"></div>
+
+                <!-- Empty State -->
+                <div id="emptyState" class="empty-state">
+                    <i class="bi bi-diagram-3 display-1 text-muted"></i>
+                    <p class="mt-3 text-muted">Select a database to visualize its memory graph</p>
+                </div>
+
+                <!-- Graph Stats -->
+                <div id="graphStats" class="graph-stats d-none">
+                    <span id="nodeCount">0</span> nodes |
+                    <span id="edgeCount">0</span> edges
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Details Panel -->
+    <div class="col-md-3">
+        <div class="card details-card">
+            <div class="card-header py-2">
+                <strong><i class="bi bi-info-circle"></i> Node Details</strong>
+            </div>
+            <div class="card-body" id="detailsPanel">
+                <div class="text-muted text-center py-4">
+                    <i class="bi bi-cursor"></i>
+                    <p class="small mt-2">Click a node to view details</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Entity Type Legend -->
+        <div class="card mt-3">
+            <div class="card-header py-2">
+                <strong><i class="bi bi-palette"></i> Entity Types</strong>
+            </div>
+            <div class="card-body py-2" id="legendPanel">
+                <div class="text-muted small text-center">
+                    Legend will appear after loading a graph
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@if (!string.IsNullOrEmpty(Model.ErrorMessage))
+{
+    <div class="alert alert-danger mt-3" role="alert">
+        <i class="bi bi-exclamation-triangle"></i> @Model.ErrorMessage
+    </div>
+}
+
+@section Scripts {
+    <script src="~/js/graph-visualizer.js"></script>
+}
