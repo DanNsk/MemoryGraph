@@ -51,6 +51,8 @@ public class DatabaseSeeder
                 fromEntity TEXT NOT NULL,
                 toEntity TEXT NOT NULL,
                 relationType TEXT NOT NULL,
+                fromType TEXT DEFAULT '',
+                toType TEXT DEFAULT '',
                 FOREIGN KEY (fromEntity) REFERENCES entities(name) ON DELETE CASCADE,
                 FOREIGN KEY (toEntity) REFERENCES entities(name) ON DELETE CASCADE
             );
@@ -128,58 +130,60 @@ public class DatabaseSeeder
             await cmd.ExecuteNonQueryAsync();
         }
 
-        // Insert relations
+        // Insert relations (from, fromType, to, toType, relationType)
         var relations = new[]
         {
-            ("AuthModule", "UserService", "depends_on"),
-            ("AuthModule", "TokenService", "contains"),
-            ("AuthModule", "PasswordHasher", "contains"),
-            ("AuthModule", "RoleService", "depends_on"),
-            ("UserService", "UserRepository", "uses"),
-            ("UserService", "CacheService", "uses"),
-            ("UserService", "ValidationService", "uses"),
-            ("UserService", "EmailService", "uses"),
-            ("UserController", "UserService", "calls"),
-            ("UserController", "ValidationService", "calls"),
-            ("UserRepository", "DatabaseContext", "uses"),
-            ("UserRepository", "User", "manages"),
-            ("AuthController", "TokenService", "calls"),
-            ("AuthController", "UserService", "calls"),
-            ("AuthController", "AuditService", "calls"),
-            ("TokenService", "ConfigService", "uses"),
-            ("EmailService", "ConfigService", "uses"),
-            ("NotificationModule", "EmailService", "contains"),
-            ("CacheService", "ConfigService", "uses"),
-            ("LoggingModule", "ConfigService", "uses"),
-            ("HealthCheckController", "MetricsService", "calls"),
-            ("HealthCheckController", "DatabaseContext", "calls"),
-            ("DataModule", "DatabaseContext", "contains"),
-            ("DataModule", "MigrationService", "contains"),
-            ("MigrationService", "DatabaseContext", "uses"),
-            ("RoleService", "Role", "manages"),
-            ("RoleService", "Permission", "manages"),
-            ("RoleService", "CacheService", "uses"),
-            ("AuditService", "AuditLog", "manages"),
-            ("AuditService", "DatabaseContext", "uses"),
-            ("ApiModule", "AuthController", "contains"),
-            ("ApiModule", "UserController", "contains"),
-            ("ApiModule", "HealthCheckController", "contains"),
-            ("ApiModule", "ErrorHandler", "contains"),
-            ("ApiModule", "RequestLogger", "contains"),
-            ("ApiModule", "RateLimiter", "contains"),
-            ("ErrorHandler", "LoggingModule", "uses"),
-            ("RequestLogger", "LoggingModule", "uses"),
-            ("RateLimiter", "CacheService", "uses"),
-            ("SwaggerConfig", "ApiModule", "documents")
+            ("AuthModule", "module", "UserService", "service", "depends_on"),
+            ("AuthModule", "module", "TokenService", "service", "contains"),
+            ("AuthModule", "module", "PasswordHasher", "class", "contains"),
+            ("AuthModule", "module", "RoleService", "service", "depends_on"),
+            ("UserService", "service", "UserRepository", "class", "uses"),
+            ("UserService", "service", "CacheService", "service", "uses"),
+            ("UserService", "service", "ValidationService", "service", "uses"),
+            ("UserService", "service", "EmailService", "service", "uses"),
+            ("UserController", "class", "UserService", "service", "calls"),
+            ("UserController", "class", "ValidationService", "service", "calls"),
+            ("UserRepository", "class", "DatabaseContext", "class", "uses"),
+            ("UserRepository", "class", "User", "class", "manages"),
+            ("AuthController", "class", "TokenService", "service", "calls"),
+            ("AuthController", "class", "UserService", "service", "calls"),
+            ("AuthController", "class", "AuditService", "service", "calls"),
+            ("TokenService", "service", "ConfigService", "service", "uses"),
+            ("EmailService", "service", "ConfigService", "service", "uses"),
+            ("NotificationModule", "module", "EmailService", "service", "contains"),
+            ("CacheService", "service", "ConfigService", "service", "uses"),
+            ("LoggingModule", "module", "ConfigService", "service", "uses"),
+            ("HealthCheckController", "class", "MetricsService", "service", "calls"),
+            ("HealthCheckController", "class", "DatabaseContext", "class", "calls"),
+            ("DataModule", "module", "DatabaseContext", "class", "contains"),
+            ("DataModule", "module", "MigrationService", "service", "contains"),
+            ("MigrationService", "service", "DatabaseContext", "class", "uses"),
+            ("RoleService", "service", "Role", "class", "manages"),
+            ("RoleService", "service", "Permission", "class", "manages"),
+            ("RoleService", "service", "CacheService", "service", "uses"),
+            ("AuditService", "service", "AuditLog", "class", "manages"),
+            ("AuditService", "service", "DatabaseContext", "class", "uses"),
+            ("ApiModule", "module", "AuthController", "class", "contains"),
+            ("ApiModule", "module", "UserController", "class", "contains"),
+            ("ApiModule", "module", "HealthCheckController", "class", "contains"),
+            ("ApiModule", "module", "ErrorHandler", "class", "contains"),
+            ("ApiModule", "module", "RequestLogger", "class", "contains"),
+            ("ApiModule", "module", "RateLimiter", "class", "contains"),
+            ("ErrorHandler", "class", "LoggingModule", "module", "uses"),
+            ("RequestLogger", "class", "LoggingModule", "module", "uses"),
+            ("RateLimiter", "class", "CacheService", "service", "uses"),
+            ("SwaggerConfig", "config", "ApiModule", "module", "documents")
         };
 
-        foreach (var (from, to, relationType) in relations)
+        foreach (var (from, fromType, to, toType, relationType) in relations)
         {
             using var cmd = connection.CreateCommand();
-            cmd.CommandText = "INSERT INTO relations (fromEntity, toEntity, relationType) VALUES (@from, @to, @type)";
+            cmd.CommandText = "INSERT INTO relations (fromEntity, toEntity, relationType, fromType, toType) VALUES (@from, @to, @type, @fromType, @toType)";
             cmd.Parameters.AddWithValue("@from", from);
             cmd.Parameters.AddWithValue("@to", to);
             cmd.Parameters.AddWithValue("@type", relationType);
+            cmd.Parameters.AddWithValue("@fromType", fromType);
+            cmd.Parameters.AddWithValue("@toType", toType);
             await cmd.ExecuteNonQueryAsync();
         }
 
@@ -238,31 +242,33 @@ public class DatabaseSeeder
 
         var relations = new[]
         {
-            ("Alice Chen", "Authentication System", "leads"),
-            ("Alice Chen", "PostgreSQL", "expert_in"),
-            ("Alice Chen", "Redis", "expert_in"),
-            ("Bob Smith", "Dashboard Redesign", "leads"),
-            ("Bob Smith", "React", "expert_in"),
-            ("Carol Davis", "CI/CD Pipeline", "leads"),
-            ("Carol Davis", "Kubernetes", "expert_in"),
-            ("David Lee", "Sprint 23", "manages"),
-            ("David Lee", "Dashboard Redesign", "owns"),
-            ("Authentication System", "Microservices Migration", "part_of"),
-            ("Authentication System", "PostgreSQL", "uses"),
-            ("Authentication System", "Redis", "uses"),
-            ("Dashboard Redesign", "React", "uses"),
-            ("CI/CD Pipeline", "Kubernetes", "uses"),
-            ("Microservices Migration", "Technical Debt", "addresses"),
-            ("Security Review", "Authentication System", "audits")
+            ("Alice Chen", "person", "Authentication System", "project", "leads"),
+            ("Alice Chen", "person", "PostgreSQL", "technology", "expert_in"),
+            ("Alice Chen", "person", "Redis", "technology", "expert_in"),
+            ("Bob Smith", "person", "Dashboard Redesign", "project", "leads"),
+            ("Bob Smith", "person", "React", "technology", "expert_in"),
+            ("Carol Davis", "person", "CI/CD Pipeline", "project", "leads"),
+            ("Carol Davis", "person", "Kubernetes", "technology", "expert_in"),
+            ("David Lee", "person", "Sprint 23", "concept", "manages"),
+            ("David Lee", "person", "Dashboard Redesign", "project", "owns"),
+            ("Authentication System", "project", "Microservices Migration", "project", "part_of"),
+            ("Authentication System", "project", "PostgreSQL", "technology", "uses"),
+            ("Authentication System", "project", "Redis", "technology", "uses"),
+            ("Dashboard Redesign", "project", "React", "technology", "uses"),
+            ("CI/CD Pipeline", "project", "Kubernetes", "technology", "uses"),
+            ("Microservices Migration", "project", "Technical Debt", "concept", "addresses"),
+            ("Security Review", "document", "Authentication System", "project", "audits")
         };
 
-        foreach (var (from, to, relationType) in relations)
+        foreach (var (from, fromType, to, toType, relationType) in relations)
         {
             using var cmd = connection.CreateCommand();
-            cmd.CommandText = "INSERT INTO relations (fromEntity, toEntity, relationType) VALUES (@from, @to, @type)";
+            cmd.CommandText = "INSERT INTO relations (fromEntity, toEntity, relationType, fromType, toType) VALUES (@from, @to, @type, @fromType, @toType)";
             cmd.Parameters.AddWithValue("@from", from);
             cmd.Parameters.AddWithValue("@to", to);
             cmd.Parameters.AddWithValue("@type", relationType);
+            cmd.Parameters.AddWithValue("@fromType", fromType);
+            cmd.Parameters.AddWithValue("@toType", toType);
             await cmd.ExecuteNonQueryAsync();
         }
 

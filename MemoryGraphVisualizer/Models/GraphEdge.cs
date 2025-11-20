@@ -26,6 +26,18 @@ public class GraphEdge
     public string Target { get; set; } = string.Empty;
 
     /// <summary>
+    /// Type of the source entity (e.g., "class", "service", "module").
+    /// </summary>
+    [JsonPropertyName("fromType")]
+    public string FromType { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Type of the target entity (e.g., "class", "service", "module").
+    /// </summary>
+    [JsonPropertyName("toType")]
+    public string ToType { get; set; } = string.Empty;
+
+    /// <summary>
     /// Type of relationship (e.g., "imports", "extends", "uses", "depends_on").
     /// </summary>
     [JsonPropertyName("relationType")]

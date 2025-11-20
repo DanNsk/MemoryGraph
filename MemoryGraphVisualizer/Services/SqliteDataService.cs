@@ -100,7 +100,7 @@ public class SqliteDataService : ISqliteDataService
             await connection.OpenAsync();
 
             using var command = connection.CreateCommand();
-            command.CommandText = "SELECT id, fromEntity, toEntity, relationType FROM relations";
+            command.CommandText = "SELECT id, fromEntity, toEntity, relationType, fromType, toType FROM relations";
 
             using var reader = await command.ExecuteReaderAsync();
             int edgeIndex = 0;
@@ -110,12 +110,16 @@ public class SqliteDataService : ISqliteDataService
                 var fromEntity = reader.GetString(1);
                 var toEntity = reader.GetString(2);
                 var relationType = reader.GetString(3);
+                var fromType = reader.IsDBNull(4) ? string.Empty : reader.GetString(4);
+                var toType = reader.IsDBNull(5) ? string.Empty : reader.GetString(5);
 
                 var edge = new GraphEdge
                 {
                     Id = id ?? $"edge_{edgeIndex}",
                     Source = fromEntity,
                     Target = toEntity,
+                    FromType = fromType,
+                    ToType = toType,
                     RelationType = relationType,
                     Label = relationType
                 };
