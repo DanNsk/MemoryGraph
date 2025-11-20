@@ -1,1 +1,3 @@
-<Project Path="MemoryGraphVisualizer/MemoryGraphVisualizer.csproj" />
+<Solution>
+  <Project Path="MemoryGraphVisualizer/MemoryGraphVisualizer.csproj" />
+</Solution>
