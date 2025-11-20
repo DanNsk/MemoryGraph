@@ -21,15 +21,15 @@ Add interactive editing capabilities to the Memory Graph Visualizer, allowing us
 
 | File | Purpose |
 |------|---------|
-| `wwwroot/js/graph-visualizer.js` | All graph UI logic, Cytoscape integration |
-| `wwwroot/css/site.css` | Styling for graph and panels |
-| `Pages/Index.cshtml` | Main UI (Razor page) |
-| `Program.cs` | API endpoints, DI setup |
-| `Services/MemoryGraphService.cs` | Graph loading logic |
-| `Services/SqliteDataService.cs` | SQLite read operations |
-| `Models/GraphNode.cs` | Node model |
-| `Models/GraphEdge.cs` | Edge model |
-| `Models/Observation.cs` | Observation model |
+| `MemoryGraphVisualizer/wwwroot/js/graph-visualizer.js` | All graph UI logic, Cytoscape integration |
+| `MemoryGraphVisualizer/wwwroot/css/site.css` | Styling for graph and panels |
+| `MemoryGraphVisualizer/Pages/Index.cshtml` | Main UI (Razor page) |
+| `MemoryGraphVisualizer/Program.cs` | API endpoints, DI setup |
+| `MemoryGraphVisualizer/Services/MemoryGraphService.cs` | Graph loading logic |
+| `MemoryGraphVisualizer/Services/SqliteDataService.cs` | SQLite read operations |
+| `MemoryGraphVisualizer/Models/GraphNode.cs` | Node model |
+| `MemoryGraphVisualizer/Models/GraphEdge.cs` | Edge model |
+| `MemoryGraphVisualizer/Models/Observation.cs` | Observation model |
 
 ### Database Schema
 

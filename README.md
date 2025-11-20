@@ -22,7 +22,7 @@ A production-ready ASP.NET Core application for visualizing knowledge graphs fro
 
 ### 1. Configure the Memory Folder
 
-Edit `appsettings.json`:
+Edit `MemoryGraphVisualizer/appsettings.json`:
 
 ```json
 {
@@ -37,6 +37,7 @@ Edit `appsettings.json`:
 ### 2. Run the Application
 
 ```bash
+cd MemoryGraphVisualizer
 dotnet restore
 dotnet run
 ```
@@ -90,18 +91,20 @@ In Development mode, the application creates sample databases:
 
 ```
 MemoryGraph/
-├── MemoryGraph.slnx                    # Solution file
-├── MemoryGraphVisualizer.csproj        # Project file
-├── Program.cs                          # Entry point and API endpoints
-├── appsettings.json                    # Configuration
-├── Configuration/                      # Options classes
-├── Models/                             # GraphNode, GraphEdge, Observation, etc.
-├── Pages/                              # Razor pages (Index)
-├── Services/                           # Business logic and data access
-├── wwwroot/
-│   ├── css/                            # Custom styles
-│   └── js/                             # Graph visualization JavaScript
-└── FEATURE_REQUEST_NODE_EDITING.md     # Planned editing features
+├── MemoryGraph.slnx                        # Solution file
+├── README.md
+├── FEATURE_REQUEST_NODE_EDITING.md         # Planned editing features
+└── MemoryGraphVisualizer/
+    ├── MemoryGraphVisualizer.csproj        # Project file
+    ├── Program.cs                          # Entry point and API endpoints
+    ├── appsettings.json                    # Configuration
+    ├── Configuration/                      # Options classes
+    ├── Models/                             # GraphNode, GraphEdge, Observation, etc.
+    ├── Pages/                              # Razor pages (Index)
+    ├── Services/                           # Business logic and data access
+    └── wwwroot/
+        ├── css/                            # Custom styles
+        └── js/                             # Graph visualization JavaScript
 ```
 
 ## Database Schema
