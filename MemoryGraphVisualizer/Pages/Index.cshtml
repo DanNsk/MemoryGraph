@@ -37,11 +37,11 @@
                     <div class="col-md-2">
                         <label for="layoutSelect" class="form-label small mb-1">Layout</label>
                         <select id="layoutSelect" class="form-select form-select-sm" disabled>
-                            <option value="cose" @(Model.DefaultLayout == "cose" ? "selected" : "")>COSE (Force-directed)</option>
-                            <option value="circle" @(Model.DefaultLayout == "circle" ? "selected" : "")>Circle</option>
-                            <option value="grid" @(Model.DefaultLayout == "grid" ? "selected" : "")>Grid</option>
-                            <option value="breadthfirst" @(Model.DefaultLayout == "breadthfirst" ? "selected" : "")>Breadthfirst</option>
-                            <option value="concentric" @(Model.DefaultLayout == "concentric" ? "selected" : "")>Concentric</option>
+                            <option value="cose" selected="@(Model.DefaultLayout == "cose")">COSE (Force-directed)</option>
+                            <option value="circle" selected="@(Model.DefaultLayout == "circle")">Circle</option>
+                            <option value="grid" selected="@(Model.DefaultLayout == "grid")">Grid</option>
+                            <option value="breadthfirst" selected="@(Model.DefaultLayout == "breadthfirst")">Breadthfirst</option>
+                            <option value="concentric" selected="@(Model.DefaultLayout == "concentric")">Concentric</option>
                         </select>
                     </div>
 
