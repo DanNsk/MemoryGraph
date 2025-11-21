@@ -81,7 +81,15 @@
                 'target-arrow-color': '#999',
                 'target-arrow-shape': 'triangle',
                 'curve-style': 'bezier',
-                'arrow-scale': 1.2
+                'arrow-scale': 1.2,
+                'label': 'data(relationType)',
+                'font-size': '9px',
+                'text-rotation': 'autorotate',
+                'text-margin-y': -10,
+                'color': '#666',
+                'text-background-color': '#fff',
+                'text-background-opacity': 0.8,
+                'text-background-padding': '2px'
             }
         },
         {
