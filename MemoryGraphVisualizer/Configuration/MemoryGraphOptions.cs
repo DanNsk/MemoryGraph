@@ -16,7 +16,7 @@ public class MemoryGraphOptions
     /// Path to the folder containing memory database files.
     /// </summary>
     [Required(ErrorMessage = "MemoryFolderPath is required")]
-    public string MemoryFolderPath { get; set; } = "./.memory/";
+    public string MemoryFolderPath { get; set; } = "./.aim/";
 
     /// <summary>
     /// Maximum number of nodes to load for performance protection.

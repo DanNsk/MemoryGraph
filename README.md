@@ -27,7 +27,7 @@ Edit `MemoryGraphVisualizer/appsettings.json`:
 ```json
 {
   "MemoryGraph": {
-    "MemoryFolderPath": "./.memory/",
+    "MemoryFolderPath": "./.aim/",
     "MaxGraphNodes": 10000,
     "DefaultLayout": "cose"
   }
@@ -67,7 +67,7 @@ In Development mode, the application creates sample databases:
 
 | Option | Description | Default |
 |--------|-------------|---------|
-| `MemoryFolderPath` | Path to folder containing .db files | `./.memory/` |
+| `MemoryFolderPath` | Path to folder containing .db files | `./.aim/` |
 | `MaxGraphNodes` | Maximum nodes to load | `10000` |
 | `DefaultLayout` | Default layout algorithm | `cose` |
 
