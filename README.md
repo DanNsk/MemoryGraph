@@ -1,6 +1,6 @@
 # Memory Graph Visualizer
 
-A production-ready ASP.NET Core application for visualizing knowledge graphs from the [multi-memory-mcp](https://github.com/DanNsk/multi-memory-mcp) project using Cytoscape.js.
+ASP.NET Core application for visualizing knowledge graphs from the [multi-memory-mcp](https://github.com/DanNsk/multi-memory-mcp) project using Cytoscape.js.
 
 ## Features
 
