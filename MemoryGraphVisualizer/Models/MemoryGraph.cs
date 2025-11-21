@@ -64,7 +64,9 @@ public class MemoryGraph
                 source = edge.Source,
                 target = edge.Target,
                 label = edge.Label,
-                relationType = edge.RelationType
+                relationType = edge.RelationType,
+                fromType = edge.FromType,
+                toType = edge.ToType
             }
         });
 
