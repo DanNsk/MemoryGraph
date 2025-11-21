@@ -204,6 +204,20 @@
             clearTimeout(tooltipTimeout);
             hideTooltip(tooltip);
         });
+
+        // Edge hover for connection types
+        cy.on('mouseover', 'edge', function (evt) {
+            const edge = evt.target;
+            clearTimeout(tooltipTimeout);
+            tooltipTimeout = setTimeout(() => {
+                showEdgeTooltip(tooltip, edge, evt.renderedPosition);
+            }, 300);
+        });
+
+        cy.on('mouseout', 'edge', function () {
+            clearTimeout(tooltipTimeout);
+            hideTooltip(tooltip);
+        });
     }
 
     /**
@@ -218,11 +232,69 @@
     }
 
     /**
-     * Show tooltip for node
+     * Show tooltip for node with observations
      */
     function showTooltip(tooltip, node, position) {
         const data = node.data();
-        tooltip.innerHTML = `<strong>${data.label}</strong><br><em>${data.entityType}</em>`;
+        let html = `<strong>${escapeHtml(data.label)}</strong><br><em>${escapeHtml(data.entityType)}</em>`;
+
+        // Add observations to tooltip
+        if (data.observations && data.observations.length > 0) {
+            html += `<div class="tooltip-observations">`;
+            const maxObservations = 3; // Limit displayed observations
+            const observations = data.observations.slice(0, maxObservations);
+
+            observations.forEach(obs => {
+                const text = typeof obs === 'string' ? obs : obs.text;
+                const truncatedText = text.length > 100 ? text.substring(0, 100) + '...' : text;
+                html += `<div class="tooltip-obs-item">${escapeHtml(truncatedText)}</div>`;
+            });
+
+            if (data.observations.length > maxObservations) {
+                html += `<div class="tooltip-obs-more">+${data.observations.length - maxObservations} more...</div>`;
+            }
+            html += `</div>`;
+        }
+
+        tooltip.innerHTML = html;
+        tooltip.style.left = (position.x + 15) + 'px';
+        tooltip.style.top = (position.y + 15) + 'px';
+        tooltip.style.display = 'block';
+    }
+
+    /**
+     * Show tooltip for edge with connection types
+     */
+    function showEdgeTooltip(tooltip, edge, position) {
+        const data = edge.data();
+        const sourceNode = edge.source();
+        const targetNode = edge.target();
+
+        let html = `<div class="edge-tooltip">`;
+
+        // Source info
+        const fromType = data.fromType || sourceNode.data('entityType') || '';
+        const toType = data.toType || targetNode.data('entityType') || '';
+
+        html += `<div class="edge-endpoint"><strong>${escapeHtml(sourceNode.data('label'))}</strong>`;
+        if (fromType) {
+            html += ` <em>(${escapeHtml(fromType)})</em>`;
+        }
+        html += `</div>`;
+
+        // Relation
+        html += `<div class="edge-relation">${escapeHtml(data.relationType)}</div>`;
+
+        // Target info
+        html += `<div class="edge-endpoint"><strong>${escapeHtml(targetNode.data('label'))}</strong>`;
+        if (toType) {
+            html += ` <em>(${escapeHtml(toType)})</em>`;
+        }
+        html += `</div>`;
+
+        html += `</div>`;
+
+        tooltip.innerHTML = html;
         tooltip.style.left = (position.x + 15) + 'px';
         tooltip.style.top = (position.y + 15) + 'px';
         tooltip.style.display = 'block';
@@ -345,6 +417,7 @@
             connections.push({
                 nodeId: edge.source().id(),
                 nodeLabel: edge.source().data('label'),
+                nodeType: edge.data('fromType') || edge.source().data('entityType'),
                 relation: edge.data('relationType'),
                 direction: 'incoming'
             });
@@ -354,6 +427,7 @@
             connections.push({
                 nodeId: edge.target().id(),
                 nodeLabel: edge.target().data('label'),
+                nodeType: edge.data('toType') || edge.target().data('entityType'),
                 relation: edge.data('relationType'),
                 direction: 'outgoing'
             });
@@ -368,10 +442,11 @@
 
             connections.forEach(conn => {
                 const icon = conn.direction === 'incoming' ? 'bi-arrow-left' : 'bi-arrow-right';
+                const typeInfo = conn.nodeType ? ` <span class="connection-node-type">[${escapeHtml(conn.nodeType)}]</span>` : '';
                 html += `
                     <div class="connection-item" onclick="window.graphVisualizer.navigateToNode('${escapeHtml(conn.nodeId)}')">
                         <i class="bi ${icon} me-1"></i>
-                        ${escapeHtml(conn.nodeLabel)}
+                        ${escapeHtml(conn.nodeLabel)}${typeInfo}
                         <span class="relation-type ms-1">(${escapeHtml(conn.relation)})</span>
                     </div>
                 `;
