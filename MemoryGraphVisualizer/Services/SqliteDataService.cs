@@ -1,4 +1,3 @@
-using System.Text.Json;
 using MemoryGraphVisualizer.Models;
 using Microsoft.Data.Sqlite;
 
@@ -51,17 +50,18 @@ public class SqliteDataService : ISqliteDataService
             using var connection = new SqliteConnection(connectionString);
             await connection.OpenAsync();
 
-            using var command = connection.CreateCommand();
-            command.CommandText = "SELECT name, entityType, observations FROM entities";
+            // Get all entities
+            using var entityCommand = connection.CreateCommand();
+            entityCommand.CommandText = "SELECT id, name, entity_type FROM entities";
 
-            using var reader = await command.ExecuteReaderAsync();
-            while (await reader.ReadAsync())
+            var entityMap = new Dictionary<long, GraphNode>();
+
+            using var entityReader = await entityCommand.ExecuteReaderAsync();
+            while (await entityReader.ReadAsync())
             {
-                var name = reader.GetString(0);
-                var entityType = reader.GetString(1);
-                var observationsJson = reader.IsDBNull(2) ? "[]" : reader.GetString(2);
-
-                var observations = ParseObservations(observationsJson);
+                var id = entityReader.GetInt64(0);
+                var name = entityReader.GetString(1);
+                var entityType = entityReader.GetString(2);
                 var color = GetColorForEntityType(entityType);
 
                 var node = new GraphNode
@@ -69,12 +69,42 @@ public class SqliteDataService : ISqliteDataService
                     Id = name,
                     Label = name,
                     EntityType = entityType,
-                    Observations = observations,
+                    Observations = new List<Observation>(),
                     Color = color,
-                    Size = CalculateNodeSize(observations.Count)
+                    Size = 30 // Will be updated after loading observations
                 };
 
+                entityMap[id] = node;
                 nodes.Add(node);
+            }
+
+            // Get all observations
+            using var obsCommand = connection.CreateCommand();
+            obsCommand.CommandText = "SELECT entity_id, content, timestamp, source FROM observations";
+
+            using var obsReader = await obsCommand.ExecuteReaderAsync();
+            while (await obsReader.ReadAsync())
+            {
+                var entityId = obsReader.GetInt64(0);
+                var content = obsReader.GetString(1);
+                var timestamp = obsReader.IsDBNull(2) ? null : obsReader.GetString(2);
+                var source = obsReader.IsDBNull(3) ? null : obsReader.GetString(3);
+
+                if (entityMap.TryGetValue(entityId, out var node))
+                {
+                    node.Observations.Add(new Observation
+                    {
+                        Text = content,
+                        Timestamp = timestamp,
+                        Source = source
+                    });
+                }
+            }
+
+            // Update node sizes based on observation count
+            foreach (var node in nodes)
+            {
+                node.Size = CalculateNodeSize(node.Observations.Count);
             }
 
             logger.LogDebug("Retrieved {Count} entities from database: {Path}", nodes.Count, dbPath);
@@ -100,7 +130,7 @@ public class SqliteDataService : ISqliteDataService
             await connection.OpenAsync();
 
             using var command = connection.CreateCommand();
-            command.CommandText = "SELECT id, fromEntity, toEntity, relationType, fromType, toType FROM relations";
+            command.CommandText = "SELECT id, from_entity, from_type, to_entity, to_type, relation_type FROM relations";
 
             using var reader = await command.ExecuteReaderAsync();
             int edgeIndex = 0;
@@ -108,10 +138,10 @@ public class SqliteDataService : ISqliteDataService
             {
                 var id = reader.IsDBNull(0) ? $"edge_{edgeIndex}" : reader.GetValue(0).ToString();
                 var fromEntity = reader.GetString(1);
-                var toEntity = reader.GetString(2);
-                var relationType = reader.GetString(3);
-                var fromType = reader.IsDBNull(4) ? string.Empty : reader.GetString(4);
-                var toType = reader.IsDBNull(5) ? string.Empty : reader.GetString(5);
+                var fromType = reader.IsDBNull(2) ? string.Empty : reader.GetString(2);
+                var toEntity = reader.GetString(3);
+                var toType = reader.IsDBNull(4) ? string.Empty : reader.GetString(4);
+                var relationType = reader.GetString(5);
 
                 var edge = new GraphEdge
                 {
@@ -158,13 +188,13 @@ public class SqliteDataService : ISqliteDataService
             using var command = connection.CreateCommand();
             command.CommandText = @"
                 SELECT COUNT(*) FROM sqlite_master
-                WHERE type='table' AND name IN ('entities', 'relations')";
+                WHERE type='table' AND name IN ('entities', 'observations', 'relations')";
 
             var tableCount = Convert.ToInt32(await command.ExecuteScalarAsync());
 
-            if (tableCount < 2)
+            if (tableCount < 3)
             {
-                logger.LogWarning("Database is missing required tables (entities, relations): {Path}", dbPath);
+                logger.LogWarning("Database is missing required tables (entities, observations, relations): {Path}", dbPath);
                 return false;
             }
 
@@ -187,46 +217,6 @@ public class SqliteDataService : ISqliteDataService
         }.ToString();
     }
 
-    private List<Observation> ParseObservations(string json)
-    {
-        if (string.IsNullOrWhiteSpace(json))
-        {
-            return new List<Observation>();
-        }
-
-        try
-        {
-            var options = new JsonSerializerOptions
-            {
-                PropertyNameCaseInsensitive = true
-            };
-
-            // Try to parse as array of observation objects
-            var observations = JsonSerializer.Deserialize<List<Observation>>(json, options);
-            if (observations != null)
-            {
-                return observations;
-            }
-        }
-        catch (JsonException)
-        {
-            // Try to parse as array of strings (legacy format)
-            try
-            {
-                var strings = JsonSerializer.Deserialize<List<string>>(json);
-                if (strings != null)
-                {
-                    return strings.Select(s => new Observation { Text = s }).ToList();
-                }
-            }
-            catch (JsonException ex)
-            {
-                logger.LogWarning(ex, "Failed to parse observations JSON: {Json}", json);
-            }
-        }
-
-        return new List<Observation>();
-    }
 
     private static string GetColorForEntityType(string entityType)
     {
