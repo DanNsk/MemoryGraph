@@ -41,25 +41,39 @@ public class DatabaseSeeder
         using var command = connection.CreateCommand();
         command.CommandText = @"
             CREATE TABLE IF NOT EXISTS entities (
-                name TEXT PRIMARY KEY,
-                entityType TEXT NOT NULL,
-                observations TEXT
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL,
+                entity_type TEXT NOT NULL,
+                created_at INTEGER DEFAULT (unixepoch()),
+                updated_at INTEGER DEFAULT (unixepoch()),
+                UNIQUE(name, entity_type)
+            );
+
+            CREATE TABLE IF NOT EXISTS observations (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                entity_id INTEGER NOT NULL,
+                content TEXT NOT NULL,
+                timestamp TEXT,
+                source TEXT,
+                created_at INTEGER DEFAULT (unixepoch()),
+                FOREIGN KEY (entity_id) REFERENCES entities(id) ON DELETE CASCADE
             );
 
             CREATE TABLE IF NOT EXISTS relations (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
-                fromEntity TEXT NOT NULL,
-                toEntity TEXT NOT NULL,
-                relationType TEXT NOT NULL,
-                fromType TEXT DEFAULT '',
-                toType TEXT DEFAULT '',
-                FOREIGN KEY (fromEntity) REFERENCES entities(name) ON DELETE CASCADE,
-                FOREIGN KEY (toEntity) REFERENCES entities(name) ON DELETE CASCADE
+                from_entity TEXT NOT NULL,
+                from_type TEXT NOT NULL,
+                to_entity TEXT NOT NULL,
+                to_type TEXT NOT NULL,
+                relation_type TEXT NOT NULL,
+                created_at INTEGER DEFAULT (unixepoch()),
+                UNIQUE(from_entity, from_type, to_entity, to_type, relation_type)
             );
 
-            CREATE INDEX IF NOT EXISTS idx_entities_type ON entities(entityType);
-            CREATE INDEX IF NOT EXISTS idx_relations_from ON relations(fromEntity);
-            CREATE INDEX IF NOT EXISTS idx_relations_to ON relations(toEntity);
+            CREATE INDEX IF NOT EXISTS idx_entities_type ON entities(entity_type);
+            CREATE INDEX IF NOT EXISTS idx_observations_entity ON observations(entity_id);
+            CREATE INDEX IF NOT EXISTS idx_relations_from ON relations(from_entity);
+            CREATE INDEX IF NOT EXISTS idx_relations_to ON relations(to_entity);
         ";
         await command.ExecuteNonQueryAsync();
     }
@@ -120,17 +134,36 @@ public class DatabaseSeeder
             ("SwaggerConfig", "config", "[{\"text\": \"OpenAPI documentation setup\", \"timestamp\": \"2025-01-14T10:00:00Z\"}]")
         };
 
-        foreach (var (name, entityType, observations) in entities)
+        // Insert entities and observations
+        foreach (var (name, entityType, observationsJson) in entities)
         {
-            using var cmd = connection.CreateCommand();
-            cmd.CommandText = "INSERT INTO entities (name, entityType, observations) VALUES (@name, @type, @obs)";
-            cmd.Parameters.AddWithValue("@name", name);
-            cmd.Parameters.AddWithValue("@type", entityType);
-            cmd.Parameters.AddWithValue("@obs", observations);
-            await cmd.ExecuteNonQueryAsync();
+            // Insert entity
+            using var entityCmd = connection.CreateCommand();
+            entityCmd.CommandText = "INSERT INTO entities (name, entity_type) VALUES (@name, @type)";
+            entityCmd.Parameters.AddWithValue("@name", name);
+            entityCmd.Parameters.AddWithValue("@type", entityType);
+            await entityCmd.ExecuteNonQueryAsync();
+
+            var entityId = connection.LastInsertRowId;
+
+            // Parse and insert observations
+            var observations = System.Text.Json.JsonSerializer.Deserialize<List<Dictionary<string, string>>>(observationsJson);
+            if (observations != null)
+            {
+                foreach (var obs in observations)
+                {
+                    using var obsCmd = connection.CreateCommand();
+                    obsCmd.CommandText = "INSERT INTO observations (entity_id, content, timestamp, source) VALUES (@entityId, @content, @timestamp, @source)";
+                    obsCmd.Parameters.AddWithValue("@entityId", entityId);
+                    obsCmd.Parameters.AddWithValue("@content", obs.GetValueOrDefault("text", ""));
+                    obsCmd.Parameters.AddWithValue("@timestamp", obs.GetValueOrDefault("timestamp") ?? (object)DBNull.Value);
+                    obsCmd.Parameters.AddWithValue("@source", obs.GetValueOrDefault("source") ?? (object)DBNull.Value);
+                    await obsCmd.ExecuteNonQueryAsync();
+                }
+            }
         }
 
-        // Insert relations (from, fromType, to, toType, relationType)
+        // Insert relations (from_entity, from_type, to_entity, to_type, relation_type)
         var relations = new[]
         {
             ("AuthModule", "module", "UserService", "service", "depends_on"),
@@ -178,12 +211,12 @@ public class DatabaseSeeder
         foreach (var (from, fromType, to, toType, relationType) in relations)
         {
             using var cmd = connection.CreateCommand();
-            cmd.CommandText = "INSERT INTO relations (fromEntity, toEntity, relationType, fromType, toType) VALUES (@from, @to, @type, @fromType, @toType)";
+            cmd.CommandText = "INSERT INTO relations (from_entity, from_type, to_entity, to_type, relation_type) VALUES (@from, @fromType, @to, @toType, @type)";
             cmd.Parameters.AddWithValue("@from", from);
-            cmd.Parameters.AddWithValue("@to", to);
-            cmd.Parameters.AddWithValue("@type", relationType);
             cmd.Parameters.AddWithValue("@fromType", fromType);
+            cmd.Parameters.AddWithValue("@to", to);
             cmd.Parameters.AddWithValue("@toType", toType);
+            cmd.Parameters.AddWithValue("@type", relationType);
             await cmd.ExecuteNonQueryAsync();
         }
 
@@ -230,14 +263,31 @@ public class DatabaseSeeder
             ("Security Review", "document", "[{\"text\": \"Q1 2025 security audit findings\", \"source\": \"security-team\"}]")
         };
 
-        foreach (var (name, entityType, observations) in entities)
+        // Insert entities and observations
+        foreach (var (name, entityType, observationsJson) in entities)
         {
-            using var cmd = connection.CreateCommand();
-            cmd.CommandText = "INSERT INTO entities (name, entityType, observations) VALUES (@name, @type, @obs)";
-            cmd.Parameters.AddWithValue("@name", name);
-            cmd.Parameters.AddWithValue("@type", entityType);
-            cmd.Parameters.AddWithValue("@obs", observations);
-            await cmd.ExecuteNonQueryAsync();
+            using var entityCmd = connection.CreateCommand();
+            entityCmd.CommandText = "INSERT INTO entities (name, entity_type) VALUES (@name, @type)";
+            entityCmd.Parameters.AddWithValue("@name", name);
+            entityCmd.Parameters.AddWithValue("@type", entityType);
+            await entityCmd.ExecuteNonQueryAsync();
+
+            var entityId = connection.LastInsertRowId;
+
+            var observations = System.Text.Json.JsonSerializer.Deserialize<List<Dictionary<string, string>>>(observationsJson);
+            if (observations != null)
+            {
+                foreach (var obs in observations)
+                {
+                    using var obsCmd = connection.CreateCommand();
+                    obsCmd.CommandText = "INSERT INTO observations (entity_id, content, timestamp, source) VALUES (@entityId, @content, @timestamp, @source)";
+                    obsCmd.Parameters.AddWithValue("@entityId", entityId);
+                    obsCmd.Parameters.AddWithValue("@content", obs.GetValueOrDefault("text", ""));
+                    obsCmd.Parameters.AddWithValue("@timestamp", obs.GetValueOrDefault("timestamp") ?? (object)DBNull.Value);
+                    obsCmd.Parameters.AddWithValue("@source", obs.GetValueOrDefault("source") ?? (object)DBNull.Value);
+                    await obsCmd.ExecuteNonQueryAsync();
+                }
+            }
         }
 
         var relations = new[]
@@ -263,12 +313,12 @@ public class DatabaseSeeder
         foreach (var (from, fromType, to, toType, relationType) in relations)
         {
             using var cmd = connection.CreateCommand();
-            cmd.CommandText = "INSERT INTO relations (fromEntity, toEntity, relationType, fromType, toType) VALUES (@from, @to, @type, @fromType, @toType)";
+            cmd.CommandText = "INSERT INTO relations (from_entity, from_type, to_entity, to_type, relation_type) VALUES (@from, @fromType, @to, @toType, @type)";
             cmd.Parameters.AddWithValue("@from", from);
-            cmd.Parameters.AddWithValue("@to", to);
-            cmd.Parameters.AddWithValue("@type", relationType);
             cmd.Parameters.AddWithValue("@fromType", fromType);
+            cmd.Parameters.AddWithValue("@to", to);
             cmd.Parameters.AddWithValue("@toType", toType);
+            cmd.Parameters.AddWithValue("@type", relationType);
             await cmd.ExecuteNonQueryAsync();
         }
 
@@ -329,14 +379,30 @@ public class DatabaseSeeder
             ("Concept E", "concept", "[{\"text\": \"Standalone concept E\"}]")
         };
 
-        foreach (var (name, entityType, observations) in entities)
+        foreach (var (name, entityType, observationsJson) in entities)
         {
-            using var cmd = connection.CreateCommand();
-            cmd.CommandText = "INSERT INTO entities (name, entityType, observations) VALUES (@name, @type, @obs)";
-            cmd.Parameters.AddWithValue("@name", name);
-            cmd.Parameters.AddWithValue("@type", entityType);
-            cmd.Parameters.AddWithValue("@obs", observations);
-            await cmd.ExecuteNonQueryAsync();
+            using var entityCmd = connection.CreateCommand();
+            entityCmd.CommandText = "INSERT INTO entities (name, entity_type) VALUES (@name, @type)";
+            entityCmd.Parameters.AddWithValue("@name", name);
+            entityCmd.Parameters.AddWithValue("@type", entityType);
+            await entityCmd.ExecuteNonQueryAsync();
+
+            var entityId = connection.LastInsertRowId;
+
+            var observations = System.Text.Json.JsonSerializer.Deserialize<List<Dictionary<string, string>>>(observationsJson);
+            if (observations != null)
+            {
+                foreach (var obs in observations)
+                {
+                    using var obsCmd = connection.CreateCommand();
+                    obsCmd.CommandText = "INSERT INTO observations (entity_id, content, timestamp, source) VALUES (@entityId, @content, @timestamp, @source)";
+                    obsCmd.Parameters.AddWithValue("@entityId", entityId);
+                    obsCmd.Parameters.AddWithValue("@content", obs.GetValueOrDefault("text", ""));
+                    obsCmd.Parameters.AddWithValue("@timestamp", obs.GetValueOrDefault("timestamp") ?? (object)DBNull.Value);
+                    obsCmd.Parameters.AddWithValue("@source", obs.GetValueOrDefault("source") ?? (object)DBNull.Value);
+                    await obsCmd.ExecuteNonQueryAsync();
+                }
+            }
         }
 
         logger.LogInformation("Created nodes-only.db with {EntityCount} entities and 0 relations", entities.Length);
