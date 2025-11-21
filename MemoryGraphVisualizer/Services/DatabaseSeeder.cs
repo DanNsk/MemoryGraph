@@ -139,12 +139,10 @@ public class DatabaseSeeder
         {
             // Insert entity
             using var entityCmd = connection.CreateCommand();
-            entityCmd.CommandText = "INSERT INTO entities (name, entity_type) VALUES (@name, @type)";
+            entityCmd.CommandText = "INSERT INTO entities (name, entity_type) VALUES (@name, @type); SELECT last_insert_rowid();";
             entityCmd.Parameters.AddWithValue("@name", name);
             entityCmd.Parameters.AddWithValue("@type", entityType);
-            await entityCmd.ExecuteNonQueryAsync();
-
-            var entityId = connection.LastInsertRowId;
+            var entityId = Convert.ToInt64(await entityCmd.ExecuteScalarAsync());
 
             // Parse and insert observations
             var observations = System.Text.Json.JsonSerializer.Deserialize<List<Dictionary<string, string>>>(observationsJson);
@@ -267,12 +265,10 @@ public class DatabaseSeeder
         foreach (var (name, entityType, observationsJson) in entities)
         {
             using var entityCmd = connection.CreateCommand();
-            entityCmd.CommandText = "INSERT INTO entities (name, entity_type) VALUES (@name, @type)";
+            entityCmd.CommandText = "INSERT INTO entities (name, entity_type) VALUES (@name, @type); SELECT last_insert_rowid();";
             entityCmd.Parameters.AddWithValue("@name", name);
             entityCmd.Parameters.AddWithValue("@type", entityType);
-            await entityCmd.ExecuteNonQueryAsync();
-
-            var entityId = connection.LastInsertRowId;
+            var entityId = Convert.ToInt64(await entityCmd.ExecuteScalarAsync());
 
             var observations = System.Text.Json.JsonSerializer.Deserialize<List<Dictionary<string, string>>>(observationsJson);
             if (observations != null)
@@ -382,12 +378,10 @@ public class DatabaseSeeder
         foreach (var (name, entityType, observationsJson) in entities)
         {
             using var entityCmd = connection.CreateCommand();
-            entityCmd.CommandText = "INSERT INTO entities (name, entity_type) VALUES (@name, @type)";
+            entityCmd.CommandText = "INSERT INTO entities (name, entity_type) VALUES (@name, @type); SELECT last_insert_rowid();";
             entityCmd.Parameters.AddWithValue("@name", name);
             entityCmd.Parameters.AddWithValue("@type", entityType);
-            await entityCmd.ExecuteNonQueryAsync();
-
-            var entityId = connection.LastInsertRowId;
+            var entityId = Convert.ToInt64(await entityCmd.ExecuteScalarAsync());
 
             var observations = System.Text.Json.JsonSerializer.Deserialize<List<Dictionary<string, string>>>(observationsJson);
             if (observations != null)
