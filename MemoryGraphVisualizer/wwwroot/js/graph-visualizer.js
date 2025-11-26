@@ -73,27 +73,21 @@
             .graphData(graphData)
             .nodeLabel(node => `${node.label} (${node.entityType})`)
             .nodeAutoColorBy('entityType')
-            .nodeRelSize(4)
-            .nodeVal(node => node.size || 10)
+            .nodeOpacity(1.0) // Solid nodes, not transparent
+            .nodeRelSize(2) // 50% smaller (was 4)
+            .nodeVal(node => node.size || 5) // Smaller base size
             .linkLabel(() => '') // Disable built-in link tooltip, use custom
             .linkColor(link => {
                 if (highlightedLinks.has(link)) return '#FF6B6B';
                 return '#999999';
             })
-            .linkOpacity(link => {
-                if (highlightedLinks.size === 0) return 0.6;
-                return highlightedLinks.has(link) ? 0.8 : 0.1;
-            })
-            .linkWidth(link => highlightedLinks.has(link) ? 4 : 2)
+            .linkOpacity(1.0) // Solid links
+            .linkWidth(2)
             .linkDirectionalArrowLength(3.5)
-            .linkDirectionalArrowRelPos(1)
+            .linkDirectionalArrowRelPos(1) // Arrow at end of link (stops at node edge)
             .linkCurvature(0.25)
-            .linkDirectionalArrowColor(link => {
-                if (highlightedLinks.has(link)) return '#FF6B6B';
-                return '#999999';
-            })
-            .linkDirectionalParticles(link => highlightedLinks.has(link) ? 4 : 0)
-            .linkDirectionalParticleWidth(4)
+            .linkDirectionalParticles(link => highlightedLinks.has(link) ? 2 : 0)
+            .linkDirectionalParticleWidth(2)
             .onNodeClick(handleNodeClick)
             .onNodeHover(handleNodeHover)
             .onLinkHover(handleLinkHover)
