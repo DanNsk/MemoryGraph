@@ -67,23 +67,14 @@
 
         console.log('Using dimensions:', width, 'x', height);
 
-        graph = new ForceGraph3D()(container)
+        graph = new ForceGraph3D(container)
             .width(width)
             .height(height)
             .graphData(graphData)
-            .nodeLabel(node => `${node.label} (${node.entityType})`) // Show label on hover
-            .nodeThreeObject(node => {
-                // Create text sprite
-                const sprite = new SpriteText(node.label);
-                sprite.color = '#333333';
-                sprite.textHeight = 8;
-                return sprite;
-            })
-            .nodeThreeObjectExtend(true)
-            .nodeRelSize(6)
-            .nodeVal(node => node.size || 20)
+            .nodeLabel(node => `${node.label} (${node.entityType})`)
             .nodeAutoColorBy('entityType')
-            .nodeOpacity(1.0)
+            .nodeRelSize(4)
+            .nodeVal(node => node.size || 10)
             .linkLabel(() => '') // Disable built-in link tooltip, use custom
             .linkColor(link => {
                 if (highlightedLinks.has(link)) return '#FF6B6B';
