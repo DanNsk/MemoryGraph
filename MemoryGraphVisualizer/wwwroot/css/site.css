@@ -169,66 +169,22 @@
     }
 }
 
-/* Tooltip styling for Cytoscape */
-.cy-tooltip {
+/* 3D Graph Controls */
+#cy canvas {
+    outline: none;
+}
+
+/* Graph interaction hint */
+.graph-hint {
     position: absolute;
-    background: rgba(0, 0, 0, 0.9);
-    color: white;
+    bottom: 50px;
+    left: 10px;
+    background: rgba(255, 255, 255, 0.9);
     padding: 8px 12px;
     border-radius: 4px;
-    font-size: 12px;
+    font-size: 0.75rem;
+    color: #666;
     pointer-events: none;
-    z-index: 1000;
-    max-width: 300px;
-    word-wrap: break-word;
-}
-
-/* Tooltip observations */
-.tooltip-observations {
-    margin-top: 8px;
-    padding-top: 8px;
-    border-top: 1px solid rgba(255, 255, 255, 0.3);
-}
-
-.tooltip-obs-item {
-    padding: 4px 0;
-    font-size: 11px;
-    color: #ddd;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-.tooltip-obs-item:last-child {
-    border-bottom: none;
-}
-
-.tooltip-obs-more {
-    font-size: 10px;
-    color: #aaa;
-    font-style: italic;
-    margin-top: 4px;
-}
-
-/* Edge tooltip styling */
-.edge-tooltip {
-    text-align: center;
-}
-
-.edge-endpoint {
-    padding: 4px 0;
-}
-
-.edge-endpoint em {
-    font-size: 10px;
-    color: #aaa;
-}
-
-.edge-relation {
-    padding: 4px 8px;
-    margin: 4px 0;
-    background: rgba(255, 255, 255, 0.15);
-    border-radius: 3px;
-    font-weight: bold;
-    color: #FFD700;
 }
 
 /* Animation for node selection */
