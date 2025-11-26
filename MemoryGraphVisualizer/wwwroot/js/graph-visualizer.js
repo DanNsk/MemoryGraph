@@ -93,14 +93,15 @@
             .warmupTicks(100)
             .cooldownTicks(0);
 
-        // Add node labels using sprites
-        graph.nodeThreeObject(node => {
-            const sprite = new SpriteText(node.label);
-            sprite.color = '#333333';
-            sprite.textHeight = 4;
-            sprite.position.y = 12;
-            return sprite;
-        });
+        // Add node labels using sprites (in addition to default spheres)
+        graph.nodeThreeObjectExtend(true) // Extend default node rendering
+            .nodeThreeObject(node => {
+                const sprite = new SpriteText(node.label);
+                sprite.color = '#333333';
+                sprite.textHeight = 4;
+                sprite.position.y = 12;
+                return sprite;
+            });
 
         // Add background color
         graph.backgroundColor('#f8f9fa');
