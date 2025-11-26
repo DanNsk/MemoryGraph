@@ -57,8 +57,11 @@
         tooltip = createTooltip();
 
         console.log('Initializing graph with data:', graphData);
+        console.log('Container dimensions:', container.offsetWidth, 'x', container.offsetHeight);
 
         graph = new ForceGraph3D(container)
+            .width(container.offsetWidth)
+            .height(container.offsetHeight)
             .graphData(graphData)
             .nodeLabel(node => `${node.label} (${node.entityType})`) // Show label on hover
             .nodeRelSize(6)
@@ -1038,6 +1041,14 @@
                     filterNodes('');
                     elements.searchInput.blur();
                     break;
+            }
+        });
+
+        // Handle window resize
+        window.addEventListener('resize', function () {
+            if (graph) {
+                const container = document.getElementById('cy');
+                graph.width(container.offsetWidth).height(container.offsetHeight);
             }
         });
     }
