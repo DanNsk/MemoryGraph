@@ -79,10 +79,10 @@
             .linkLabel(() => '') // Disable built-in link tooltip, use custom
             .linkColor('#999999')
             .linkOpacity(1.0)
-            .linkWidth(2)
-            .linkDirectionalArrowLength(6) // Make arrows bigger
-            .linkDirectionalArrowRelPos(1) // Position at end
-            .linkDirectionalArrowColor('#999999') // Set arrow color explicitly
+            .linkWidth(0.5) // Thin lines so arrows are visible
+            .linkDirectionalArrowLength(6)
+            .linkDirectionalArrowRelPos(1)
+            .linkDirectionalArrowColor('#999999')
             .linkCurvature(0.25)
             .linkDirectionalParticles(link => highlightedLinks.has(link) ? 2 : 0)
             .linkDirectionalParticleWidth(2)
