@@ -187,6 +187,69 @@
     pointer-events: none;
 }
 
+/* Custom tooltips for 3D graph */
+.graph-tooltip {
+    position: fixed;
+    background: rgba(0, 0, 0, 0.9);
+    color: white;
+    padding: 8px 12px;
+    border-radius: 4px;
+    font-size: 12px;
+    pointer-events: none;
+    z-index: 10000;
+    max-width: 300px;
+    word-wrap: break-word;
+    display: none;
+}
+
+/* Tooltip observations */
+.tooltip-observations {
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.tooltip-obs-item {
+    padding: 4px 0;
+    font-size: 11px;
+    color: #ddd;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.tooltip-obs-item:last-child {
+    border-bottom: none;
+}
+
+.tooltip-obs-more {
+    font-size: 10px;
+    color: #aaa;
+    font-style: italic;
+    margin-top: 4px;
+}
+
+/* Edge tooltip styling */
+.edge-tooltip {
+    text-align: center;
+}
+
+.edge-endpoint {
+    padding: 4px 0;
+}
+
+.edge-endpoint em {
+    font-size: 10px;
+    color: #aaa;
+}
+
+.edge-relation {
+    padding: 4px 8px;
+    margin: 4px 0;
+    background: rgba(255, 255, 255, 0.15);
+    border-radius: 3px;
+    font-weight: bold;
+    color: #FFD700;
+}
+
 /* Animation for node selection */
 @keyframes pulse {
     0% { box-shadow: 0 0 0 0 rgba(255, 215, 0, 0.7); }

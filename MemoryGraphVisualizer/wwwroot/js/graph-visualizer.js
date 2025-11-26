@@ -18,6 +18,10 @@
     let highlightedNodes = new Set();
     let highlightedLinks = new Set();
 
+    // Tooltip state
+    let tooltip = null;
+    let tooltipTimeout = null;
+
     // DOM elements
     const elements = {
         databaseSelect: document.getElementById('databaseSelect'),
@@ -49,9 +53,12 @@
     function init3DGraph() {
         const container = document.getElementById('cy');
 
+        // Create custom tooltip element
+        tooltip = createTooltip();
+
         graph = ForceGraph3D()(container)
             .graphData(graphData)
-            .nodeLabel(node => `${node.label} (${node.entityType})`)
+            .nodeLabel(() => '') // Disable built-in tooltip, use custom
             .nodeColor(node => {
                 if (selectedNode === node) return '#FFD700';
                 if (highlightedNodes.has(node)) return '#FF6B6B';
@@ -63,7 +70,7 @@
             })
             .nodeRelSize(6)
             .nodeVal(node => node.size || 10)
-            .linkLabel(link => link.relationType || '')
+            .linkLabel(() => '') // Disable built-in link tooltip, use custom
             .linkColor(link => {
                 if (highlightedLinks.has(link)) return '#FF6B6B';
                 return '#999999';
@@ -79,6 +86,7 @@
             .linkDirectionalParticleWidth(2)
             .onNodeClick(handleNodeClick)
             .onNodeHover(handleNodeHover)
+            .onLinkHover(handleLinkHover)
             .onBackgroundClick(handleBackgroundClick)
             .d3AlphaDecay(0.02)
             .d3VelocityDecay(0.3)
@@ -104,6 +112,10 @@
     function handleNodeClick(node) {
         if (!node) return;
 
+        // Hide tooltip on click
+        clearTimeout(tooltipTimeout);
+        hideTooltip();
+
         selectedNode = node;
         showNodeDetails(node);
         highlightConnections(node);
@@ -114,6 +126,10 @@
      * Handle background click event
      */
     function handleBackgroundClick() {
+        // Hide tooltip on click
+        clearTimeout(tooltipTimeout);
+        hideTooltip();
+
         selectedNode = null;
         clearNodeDetails();
         clearHighlights();
@@ -123,12 +139,132 @@
     /**
      * Handle node hover event
      */
-    function handleNodeHover(node) {
-        // Highlight on hover is handled by the label
+    function handleNodeHover(node, prevNode) {
+        // Clear existing timeout
+        clearTimeout(tooltipTimeout);
+
         if (node) {
             document.body.style.cursor = 'pointer';
+            // Show tooltip after delay
+            tooltipTimeout = setTimeout(() => {
+                showNodeTooltip(node);
+            }, 300);
         } else {
             document.body.style.cursor = 'default';
+            hideTooltip();
+        }
+    }
+
+    /**
+     * Handle link hover event
+     */
+    function handleLinkHover(link, prevLink) {
+        // Clear existing timeout
+        clearTimeout(tooltipTimeout);
+
+        if (link) {
+            // Show tooltip after delay
+            tooltipTimeout = setTimeout(() => {
+                showLinkTooltip(link);
+            }, 300);
+        } else {
+            hideTooltip();
+        }
+    }
+
+    /**
+     * Create tooltip element
+     */
+    function createTooltip() {
+        const tooltip = document.createElement('div');
+        tooltip.className = 'graph-tooltip';
+        document.body.appendChild(tooltip);
+
+        // Update tooltip position on mouse move
+        document.addEventListener('mousemove', (e) => {
+            if (tooltip.style.display === 'block') {
+                tooltip.style.left = (e.clientX + 15) + 'px';
+                tooltip.style.top = (e.clientY + 15) + 'px';
+            }
+        });
+
+        return tooltip;
+    }
+
+    /**
+     * Show tooltip for node with observations
+     */
+    function showNodeTooltip(node) {
+        const data = node;
+        let html = `<strong>${escapeHtml(data.label)}</strong><br><em>${escapeHtml(data.entityType)}</em>`;
+
+        // Add observations to tooltip
+        if (data.observations && data.observations.length > 0) {
+            html += `<div class="tooltip-observations">`;
+            const maxObservations = 3; // Limit displayed observations
+            const observations = data.observations.slice(0, maxObservations);
+
+            observations.forEach(obs => {
+                const text = typeof obs === 'string' ? obs : obs.text;
+                const truncatedText = text.length > 100 ? text.substring(0, 100) + '...' : text;
+                html += `<div class="tooltip-obs-item">${escapeHtml(truncatedText)}</div>`;
+            });
+
+            if (data.observations.length > maxObservations) {
+                html += `<div class="tooltip-obs-more">+${data.observations.length - maxObservations} more...</div>`;
+            }
+            html += `</div>`;
+        }
+
+        tooltip.innerHTML = html;
+        tooltip.style.display = 'block';
+    }
+
+    /**
+     * Show tooltip for link with connection info
+     */
+    function showLinkTooltip(link) {
+        const sourceNode = typeof link.source === 'object' ? link.source :
+            graphData.nodes.find(n => n.id === link.source);
+        const targetNode = typeof link.target === 'object' ? link.target :
+            graphData.nodes.find(n => n.id === link.target);
+
+        if (!sourceNode || !targetNode) return;
+
+        let html = `<div class="edge-tooltip">`;
+
+        // Source info
+        const fromType = link.fromType || sourceNode.entityType || '';
+        const toType = link.toType || targetNode.entityType || '';
+
+        html += `<div class="edge-endpoint"><strong>${escapeHtml(sourceNode.label)}</strong>`;
+        if (fromType) {
+            html += ` <em>(${escapeHtml(fromType)})</em>`;
+        }
+        html += `</div>`;
+
+        // Relation
+        html += `<div class="edge-relation">${escapeHtml(link.relationType)}</div>`;
+
+        // Target info
+        html += `<div class="edge-endpoint"><strong>${escapeHtml(targetNode.label)}</strong>`;
+        if (toType) {
+            html += ` <em>(${escapeHtml(toType)})</em>`;
+        }
+        html += `</div>`;
+
+        html += `</div>`;
+
+        tooltip.innerHTML = html;
+        tooltip.style.display = 'block';
+    }
+
+    /**
+     * Hide tooltip
+     */
+    function hideTooltip() {
+        if (tooltip) {
+            tooltip.style.display = 'none';
         }
     }
 
