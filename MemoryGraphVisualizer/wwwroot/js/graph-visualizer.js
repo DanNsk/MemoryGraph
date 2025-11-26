@@ -56,7 +56,7 @@
         // Create custom tooltip element
         tooltip = createTooltip();
 
-        graph = ForceGraph3D()(container)
+        graph = new ForceGraph3D(container)
             .graphData(graphData)
             .nodeLabel(() => '') // Disable built-in tooltip, use custom
             .nodeColor(node => {
@@ -80,8 +80,9 @@
                 return highlightedLinks.has(link) ? 0.8 : 0.1;
             })
             .linkWidth(link => highlightedLinks.has(link) ? 4 : 2)
-            .linkDirectionalArrowLength(8)
+            .linkDirectionalArrowLength(3.5)
             .linkDirectionalArrowRelPos(1)
+            .linkCurvature(0.25)
             .linkDirectionalArrowColor(link => {
                 if (highlightedLinks.has(link)) return '#FF6B6B';
                 return '#999999';
