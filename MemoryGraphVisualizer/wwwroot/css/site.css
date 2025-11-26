@@ -169,18 +169,37 @@
     }
 }
 
-/* Tooltip styling for Cytoscape */
-.cy-tooltip {
+/* 3D Graph Controls */
+#cy canvas {
+    outline: none;
+}
+
+/* Graph interaction hint */
+.graph-hint {
     position: absolute;
+    bottom: 50px;
+    left: 10px;
+    background: rgba(255, 255, 255, 0.9);
+    padding: 8px 12px;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    color: #666;
+    pointer-events: none;
+}
+
+/* Custom tooltips for 3D graph */
+.graph-tooltip {
+    position: fixed;
     background: rgba(0, 0, 0, 0.9);
     color: white;
     padding: 8px 12px;
     border-radius: 4px;
     font-size: 12px;
     pointer-events: none;
-    z-index: 1000;
+    z-index: 10000;
     max-width: 300px;
     word-wrap: break-word;
+    display: none;
 }
 
 /* Tooltip observations */

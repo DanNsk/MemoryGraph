@@ -1,16 +1,26 @@
 /**
  * Memory Graph Visualizer
- * Cytoscape.js integration for visualizing knowledge graphs
+ * 3D Force Graph integration for visualizing knowledge graphs
  */
 
 (function () {
     'use strict';
 
-    // Cytoscape instance
-    let cy = null;
+    // 3D Force Graph instance
+    let graph = null;
 
     // Current graph data
     let currentGraph = null;
+    let graphData = { nodes: [], links: [] };
+
+    // Selected node
+    let selectedNode = null;
+    let highlightedNodes = new Set();
+    let highlightedLinks = new Set();
+
+    // Tooltip state
+    let tooltip = null;
+    let tooltipTimeout = null;
 
     // DOM elements
     const elements = {
@@ -31,201 +41,135 @@
         legendPanel: document.getElementById('legendPanel')
     };
 
-    // Cytoscape style definitions
-    const cytoscapeStyle = [
-        {
-            selector: 'node',
-            style: {
-                'label': 'data(label)',
-                'background-color': 'data(color)',
-                'width': 'data(size)',
-                'height': 'data(size)',
-                'text-valign': 'bottom',
-                'text-halign': 'center',
-                'font-size': '10px',
-                'color': '#333',
-                'text-margin-y': 5,
-                'text-wrap': 'ellipsis',
-                'text-max-width': '80px',
-                'border-width': 2,
-                'border-color': '#fff'
-            }
-        },
-        {
-            selector: 'node:selected',
-            style: {
-                'border-width': 3,
-                'border-color': '#FFD700',
-                'background-blacken': -0.1
-            }
-        },
-        {
-            selector: 'node.highlighted',
-            style: {
-                'border-width': 3,
-                'border-color': '#FF6B6B',
-                'background-blacken': -0.2
-            }
-        },
-        {
-            selector: 'node.faded',
-            style: {
-                'opacity': 0.3
-            }
-        },
-        {
-            selector: 'edge',
-            style: {
-                'width': 2,
-                'line-color': '#999',
-                'target-arrow-color': '#999',
-                'target-arrow-shape': 'triangle',
-                'curve-style': 'bezier',
-                'arrow-scale': 1.2,
-                'label': 'data(relationType)',
-                'font-size': '9px',
-                'text-rotation': 'autorotate',
-                'text-margin-y': -10,
-                'color': '#666',
-                'text-background-color': '#fff',
-                'text-background-opacity': 0.8,
-                'text-background-padding': '2px'
-            }
-        },
-        {
-            selector: 'edge:selected',
-            style: {
-                'line-color': '#FFD700',
-                'target-arrow-color': '#FFD700',
-                'width': 3
-            }
-        },
-        {
-            selector: 'edge.highlighted',
-            style: {
-                'line-color': '#FF6B6B',
-                'target-arrow-color': '#FF6B6B',
-                'width': 3
-            }
-        },
-        {
-            selector: 'edge.faded',
-            style: {
-                'opacity': 0.2
-            }
-        }
+    // Entity type colors (default colors)
+    const defaultColors = [
+        '#4285F4', '#DB4437', '#F4B400', '#0F9D58', '#AB47BC',
+        '#00ACC1', '#FF7043', '#9E9D24', '#5C6BC0', '#F06292'
     ];
 
-    // Layout configurations
-    const layoutConfigs = {
-        cose: {
-            name: 'cose',
-            animate: true,
-            animationDuration: 500,
-            nodeDimensionsIncludeLabels: true,
-            nodeRepulsion: function () { return 8000; },
-            idealEdgeLength: function () { return 100; },
-            edgeElasticity: function () { return 100; },
-            gravity: 0.25,
-            numIter: 1000
-        },
-        circle: {
-            name: 'circle',
-            animate: true,
-            animationDuration: 500,
-            padding: 30
-        },
-        grid: {
-            name: 'grid',
-            animate: true,
-            animationDuration: 500,
-            padding: 30,
-            rows: undefined,
-            cols: undefined
-        },
-        breadthfirst: {
-            name: 'breadthfirst',
-            animate: true,
-            animationDuration: 500,
-            directed: true,
-            padding: 30,
-            spacingFactor: 1.5
-        },
-        concentric: {
-            name: 'concentric',
-            animate: true,
-            animationDuration: 500,
-            padding: 30,
-            concentric: function (node) {
-                return node.degree();
-            },
-            levelWidth: function () { return 2; }
-        }
-    };
+    /**
+     * Initialize the 3D Force Graph instance
+     */
+    function init3DGraph() {
+        const container = document.getElementById('cy');
+
+        // Create custom tooltip element
+        tooltip = createTooltip();
+
+        graph = ForceGraph3D()(container)
+            .graphData(graphData)
+            .nodeLabel(() => '') // Disable built-in tooltip, use custom
+            .nodeColor(node => {
+                if (selectedNode === node) return '#FFD700';
+                if (highlightedNodes.has(node)) return '#FF6B6B';
+                return node.color || '#999';
+            })
+            .nodeOpacity(node => {
+                if (highlightedNodes.size === 0) return 0.9;
+                return highlightedNodes.has(node) || selectedNode === node ? 0.9 : 0.2;
+            })
+            .nodeRelSize(6)
+            .nodeVal(node => node.size || 10)
+            .linkLabel(() => '') // Disable built-in link tooltip, use custom
+            .linkColor(link => {
+                if (highlightedLinks.has(link)) return '#FF6B6B';
+                return '#999999';
+            })
+            .linkOpacity(link => {
+                if (highlightedLinks.size === 0) return 0.6;
+                return highlightedLinks.has(link) ? 0.8 : 0.1;
+            })
+            .linkWidth(link => highlightedLinks.has(link) ? 2 : 1)
+            .linkDirectionalArrowLength(3.5)
+            .linkDirectionalArrowRelPos(1)
+            .linkDirectionalParticles(link => highlightedLinks.has(link) ? 2 : 0)
+            .linkDirectionalParticleWidth(2)
+            .onNodeClick(handleNodeClick)
+            .onNodeHover(handleNodeHover)
+            .onLinkHover(handleLinkHover)
+            .onBackgroundClick(handleBackgroundClick)
+            .d3AlphaDecay(0.02)
+            .d3VelocityDecay(0.3)
+            .warmupTicks(100)
+            .cooldownTicks(0);
+
+        // Add node labels using sprites
+        graph.nodeThreeObject(node => {
+            const sprite = new SpriteText(node.label);
+            sprite.color = '#333333';
+            sprite.textHeight = 4;
+            sprite.position.y = 12;
+            return sprite;
+        });
+
+        // Add background color
+        graph.backgroundColor('#f8f9fa');
+    }
 
     /**
-     * Initialize the Cytoscape instance
+     * Handle node click event
      */
-    function initCytoscape() {
-        cy = cytoscape({
-            container: document.getElementById('cy'),
-            style: cytoscapeStyle,
-            elements: [],
-            layout: { name: 'preset' },
-            wheelSensitivity: 0.3,
-            minZoom: 0.1,
-            maxZoom: 5
-        });
+    function handleNodeClick(node) {
+        if (!node) return;
 
-        // Event handlers
-        cy.on('tap', 'node', function (evt) {
-            const node = evt.target;
-            showNodeDetails(node);
-            highlightConnections(node);
-        });
+        // Hide tooltip on click
+        clearTimeout(tooltipTimeout);
+        hideTooltip();
 
-        cy.on('tap', function (evt) {
-            if (evt.target === cy) {
-                clearNodeDetails();
-                clearHighlights();
-            }
-        });
+        selectedNode = node;
+        showNodeDetails(node);
+        highlightConnections(node);
+        updateGraph();
+    }
 
-        // Tooltip on hover
-        let tooltipTimeout;
-        const tooltip = createTooltip();
+    /**
+     * Handle background click event
+     */
+    function handleBackgroundClick() {
+        // Hide tooltip on click
+        clearTimeout(tooltipTimeout);
+        hideTooltip();
 
-        cy.on('mouseover', 'node', function (evt) {
-            const node = evt.target;
-            clearTimeout(tooltipTimeout);
+        selectedNode = null;
+        clearNodeDetails();
+        clearHighlights();
+        updateGraph();
+    }
+
+    /**
+     * Handle node hover event
+     */
+    function handleNodeHover(node, prevNode) {
+        // Clear existing timeout
+        clearTimeout(tooltipTimeout);
+
+        if (node) {
+            document.body.style.cursor = 'pointer';
+            // Show tooltip after delay
             tooltipTimeout = setTimeout(() => {
-                showTooltip(tooltip, node, evt.renderedPosition);
+                showNodeTooltip(node);
             }, 300);
-        });
+        } else {
+            document.body.style.cursor = 'default';
+            hideTooltip();
+        }
+    }
 
-        cy.on('mouseout', 'node', function () {
-            clearTimeout(tooltipTimeout);
-            hideTooltip(tooltip);
-        });
+    /**
+     * Handle link hover event
+     */
+    function handleLinkHover(link, prevLink) {
+        // Clear existing timeout
+        clearTimeout(tooltipTimeout);
 
-        cy.on('drag', 'node', function () {
-            clearTimeout(tooltipTimeout);
-            hideTooltip(tooltip);
-        });
-
-        // Edge hover for connection types
-        cy.on('mouseover', 'edge', function (evt) {
-            const edge = evt.target;
-            clearTimeout(tooltipTimeout);
+        if (link) {
+            // Show tooltip after delay
             tooltipTimeout = setTimeout(() => {
-                showEdgeTooltip(tooltip, edge, evt.renderedPosition);
+                showLinkTooltip(link);
             }, 300);
-        });
-
-        cy.on('mouseout', 'edge', function () {
-            clearTimeout(tooltipTimeout);
-            hideTooltip(tooltip);
-        });
+        } else {
+            hideTooltip();
+        }
     }
 
     /**
@@ -233,17 +177,25 @@
      */
     function createTooltip() {
         const tooltip = document.createElement('div');
-        tooltip.className = 'cy-tooltip';
-        tooltip.style.display = 'none';
+        tooltip.className = 'graph-tooltip';
         document.body.appendChild(tooltip);
+
+        // Update tooltip position on mouse move
+        document.addEventListener('mousemove', (e) => {
+            if (tooltip.style.display === 'block') {
+                tooltip.style.left = (e.clientX + 15) + 'px';
+                tooltip.style.top = (e.clientY + 15) + 'px';
+            }
+        });
+
         return tooltip;
     }
 
     /**
      * Show tooltip for node with observations
      */
-    function showTooltip(tooltip, node, position) {
-        const data = node.data();
+    function showNodeTooltip(node) {
+        const data = node;
         let html = `<strong>${escapeHtml(data.label)}</strong><br><em>${escapeHtml(data.entityType)}</em>`;
 
         // Add observations to tooltip
@@ -265,36 +217,37 @@
         }
 
         tooltip.innerHTML = html;
-        tooltip.style.left = (position.x + 15) + 'px';
-        tooltip.style.top = (position.y + 15) + 'px';
         tooltip.style.display = 'block';
     }
 
     /**
-     * Show tooltip for edge with connection types
+     * Show tooltip for link with connection info
      */
-    function showEdgeTooltip(tooltip, edge, position) {
-        const data = edge.data();
-        const sourceNode = edge.source();
-        const targetNode = edge.target();
+    function showLinkTooltip(link) {
+        const sourceNode = typeof link.source === 'object' ? link.source :
+            graphData.nodes.find(n => n.id === link.source);
+        const targetNode = typeof link.target === 'object' ? link.target :
+            graphData.nodes.find(n => n.id === link.target);
+
+        if (!sourceNode || !targetNode) return;
 
         let html = `<div class="edge-tooltip">`;
 
         // Source info
-        const fromType = data.fromType || sourceNode.data('entityType') || '';
-        const toType = data.toType || targetNode.data('entityType') || '';
+        const fromType = link.fromType || sourceNode.entityType || '';
+        const toType = link.toType || targetNode.entityType || '';
 
-        html += `<div class="edge-endpoint"><strong>${escapeHtml(sourceNode.data('label'))}</strong>`;
+        html += `<div class="edge-endpoint"><strong>${escapeHtml(sourceNode.label)}</strong>`;
         if (fromType) {
             html += ` <em>(${escapeHtml(fromType)})</em>`;
         }
         html += `</div>`;
 
         // Relation
-        html += `<div class="edge-relation">${escapeHtml(data.relationType)}</div>`;
+        html += `<div class="edge-relation">${escapeHtml(link.relationType)}</div>`;
 
         // Target info
-        html += `<div class="edge-endpoint"><strong>${escapeHtml(targetNode.data('label'))}</strong>`;
+        html += `<div class="edge-endpoint"><strong>${escapeHtml(targetNode.label)}</strong>`;
         if (toType) {
             html += ` <em>(${escapeHtml(toType)})</em>`;
         }
@@ -303,16 +256,59 @@
         html += `</div>`;
 
         tooltip.innerHTML = html;
-        tooltip.style.left = (position.x + 15) + 'px';
-        tooltip.style.top = (position.y + 15) + 'px';
         tooltip.style.display = 'block';
     }
 
     /**
      * Hide tooltip
      */
-    function hideTooltip(tooltip) {
-        tooltip.style.display = 'none';
+    function hideTooltip() {
+        if (tooltip) {
+            tooltip.style.display = 'none';
+        }
+    }
+
+    /**
+     * Convert Cytoscape format to 3D Force Graph format
+     */
+    function convertGraphData(cytoscapeData) {
+        const nodes = [];
+        const links = [];
+        const nodeMap = new Map();
+
+        // Process nodes
+        if (cytoscapeData.elements && cytoscapeData.elements.nodes) {
+            cytoscapeData.elements.nodes.forEach((nodeElement, index) => {
+                const data = nodeElement.data;
+                const node = {
+                    id: data.id,
+                    label: data.label || data.id,
+                    entityType: data.entityType || 'Unknown',
+                    color: data.color || defaultColors[index % defaultColors.length],
+                    size: data.size || 10,
+                    observations: data.observations || []
+                };
+                nodes.push(node);
+                nodeMap.set(node.id, node);
+            });
+        }
+
+        // Process edges/links
+        if (cytoscapeData.elements && cytoscapeData.elements.edges) {
+            cytoscapeData.elements.edges.forEach(edgeElement => {
+                const data = edgeElement.data;
+                const link = {
+                    source: data.source,
+                    target: data.target,
+                    relationType: data.relationType || '',
+                    fromType: data.fromType || '',
+                    toType: data.toType || ''
+                };
+                links.push(link);
+            });
+        }
+
+        return { nodes, links, nodeMap };
     }
 
     /**
@@ -332,17 +328,14 @@
             const data = await response.json();
             currentGraph = data;
 
-            // Clear existing elements
-            cy.elements().remove();
+            // Convert data format
+            const converted = convertGraphData(data);
+            graphData = { nodes: converted.nodes, links: converted.links };
 
-            // Add new elements
-            if (data.elements) {
-                cy.add(data.elements.nodes || []);
-                cy.add(data.elements.edges || []);
+            // Update graph
+            if (graph) {
+                graph.graphData(graphData);
             }
-
-            // Apply layout
-            applyLayout(elements.layoutSelect.value);
 
             // Update UI
             updateStats(data.metadata);
@@ -367,20 +360,224 @@
      * Apply layout algorithm
      */
     function applyLayout(layoutName) {
-        const config = layoutConfigs[layoutName] || layoutConfigs.cose;
-        const layout = cy.layout(config);
-        layout.run();
+        if (!graph) return;
+
+        // Configure force simulation based on layout type
+        switch (layoutName) {
+            case 'cose':
+                graph
+                    .d3AlphaDecay(0.02)
+                    .d3VelocityDecay(0.3)
+                    .d3Force('charge').strength(-120);
+                break;
+            case 'circle':
+                arrangeInCircle();
+                break;
+            case 'grid':
+                arrangeInGrid();
+                break;
+            case 'breadthfirst':
+                arrangeHierarchical();
+                break;
+            case 'concentric':
+                arrangeInConcentric();
+                break;
+        }
+
+        // Re-heat simulation
+        graph.numDimensions(3).d3ReheatSimulation();
+    }
+
+    /**
+     * Arrange nodes in a circle
+     */
+    function arrangeInCircle() {
+        const nodes = graphData.nodes;
+        const radius = nodes.length * 10;
+
+        nodes.forEach((node, i) => {
+            const angle = (i / nodes.length) * Math.PI * 2;
+            node.fx = Math.cos(angle) * radius;
+            node.fy = Math.sin(angle) * radius;
+            node.fz = 0;
+        });
+
+        graph.graphData(graphData);
+
+        setTimeout(() => {
+            nodes.forEach(node => {
+                node.fx = undefined;
+                node.fy = undefined;
+                node.fz = undefined;
+            });
+        }, 3000);
+    }
+
+    /**
+     * Arrange nodes in a grid
+     */
+    function arrangeInGrid() {
+        const nodes = graphData.nodes;
+        const cols = Math.ceil(Math.sqrt(nodes.length));
+        const spacing = 30;
+
+        nodes.forEach((node, i) => {
+            const col = i % cols;
+            const row = Math.floor(i / cols);
+            node.fx = (col - cols / 2) * spacing;
+            node.fy = (row - cols / 2) * spacing;
+            node.fz = 0;
+        });
+
+        graph.graphData(graphData);
+
+        setTimeout(() => {
+            nodes.forEach(node => {
+                node.fx = undefined;
+                node.fy = undefined;
+                node.fz = undefined;
+            });
+        }, 3000);
+    }
+
+    /**
+     * Arrange nodes hierarchically
+     */
+    function arrangeHierarchical() {
+        const nodes = graphData.nodes;
+        const links = graphData.links;
+
+        // Calculate node levels using BFS
+        const levels = new Map();
+        const visited = new Set();
+        const queue = [];
+
+        // Find root nodes (nodes with no incoming edges)
+        const hasIncoming = new Set(links.map(l => l.target));
+        const roots = nodes.filter(n => !hasIncoming.has(n.id));
+
+        if (roots.length === 0 && nodes.length > 0) {
+            roots.push(nodes[0]);
+        }
+
+        roots.forEach(root => {
+            queue.push({ node: root, level: 0 });
+            levels.set(root.id, 0);
+        });
+
+        while (queue.length > 0) {
+            const { node, level } = queue.shift();
+            if (visited.has(node.id)) continue;
+            visited.add(node.id);
+
+            const outgoing = links.filter(l => l.source.id === node.id || l.source === node.id);
+            outgoing.forEach(link => {
+                const targetId = typeof link.target === 'object' ? link.target.id : link.target;
+                const targetNode = nodes.find(n => n.id === targetId);
+                if (targetNode && !visited.has(targetId)) {
+                    const targetLevel = level + 1;
+                    if (!levels.has(targetId) || levels.get(targetId) > targetLevel) {
+                        levels.set(targetId, targetLevel);
+                        queue.push({ node: targetNode, level: targetLevel });
+                    }
+                }
+            });
+        }
+
+        // Position nodes by level
+        const levelGroups = new Map();
+        nodes.forEach(node => {
+            const level = levels.get(node.id) || 0;
+            if (!levelGroups.has(level)) {
+                levelGroups.set(level, []);
+            }
+            levelGroups.get(level).push(node);
+        });
+
+        const spacing = 40;
+        levelGroups.forEach((levelNodes, level) => {
+            levelNodes.forEach((node, i) => {
+                node.fx = (i - levelNodes.length / 2) * spacing;
+                node.fy = level * spacing;
+                node.fz = 0;
+            });
+        });
+
+        graph.graphData(graphData);
+
+        setTimeout(() => {
+            nodes.forEach(node => {
+                node.fx = undefined;
+                node.fy = undefined;
+                node.fz = undefined;
+            });
+        }, 3000);
+    }
+
+    /**
+     * Arrange nodes in concentric circles
+     */
+    function arrangeInConcentric() {
+        const nodes = graphData.nodes;
+        const links = graphData.links;
+
+        // Calculate degree for each node
+        const degrees = new Map();
+        nodes.forEach(node => degrees.set(node.id, 0));
+
+        links.forEach(link => {
+            const sourceId = typeof link.source === 'object' ? link.source.id : link.source;
+            const targetId = typeof link.target === 'object' ? link.target.id : link.target;
+            degrees.set(sourceId, (degrees.get(sourceId) || 0) + 1);
+            degrees.set(targetId, (degrees.get(targetId) || 0) + 1);
+        });
+
+        // Sort nodes by degree
+        const sortedNodes = [...nodes].sort((a, b) =>
+            (degrees.get(b.id) || 0) - (degrees.get(a.id) || 0)
+        );
+
+        // Arrange in concentric circles
+        const maxDegree = Math.max(...degrees.values(), 1);
+        const baseRadius = 30;
+
+        sortedNodes.forEach((node, i) => {
+            const degree = degrees.get(node.id) || 0;
+            const radius = baseRadius + ((maxDegree - degree) / maxDegree) * 100;
+            const angle = (i / sortedNodes.length) * Math.PI * 2;
+
+            node.fx = Math.cos(angle) * radius;
+            node.fy = Math.sin(angle) * radius;
+            node.fz = 0;
+        });
+
+        graph.graphData(graphData);
+
+        setTimeout(() => {
+            nodes.forEach(node => {
+                node.fx = undefined;
+                node.fy = undefined;
+                node.fz = undefined;
+            });
+        }, 3000);
     }
 
     /**
      * Show node details in the panel
      */
     function showNodeDetails(node) {
-        const data = node.data();
+        const data = node;
 
         // Get connected nodes
-        const incomers = node.incomers('edge');
-        const outgoers = node.outgoers('edge');
+        const incomingLinks = graphData.links.filter(link => {
+            const targetId = typeof link.target === 'object' ? link.target.id : link.target;
+            return targetId === node.id;
+        });
+
+        const outgoingLinks = graphData.links.filter(link => {
+            const sourceId = typeof link.source === 'object' ? link.source.id : link.source;
+            return sourceId === node.id;
+        });
 
         let html = `
             <div class="node-title">${escapeHtml(data.label)}</div>
@@ -421,24 +618,32 @@
         // Connections
         const connections = [];
 
-        incomers.forEach(edge => {
-            connections.push({
-                nodeId: edge.source().id(),
-                nodeLabel: edge.source().data('label'),
-                nodeType: edge.data('fromType') || edge.source().data('entityType'),
-                relation: edge.data('relationType'),
-                direction: 'incoming'
-            });
+        incomingLinks.forEach(link => {
+            const sourceNode = typeof link.source === 'object' ? link.source :
+                graphData.nodes.find(n => n.id === link.source);
+            if (sourceNode) {
+                connections.push({
+                    nodeId: sourceNode.id,
+                    nodeLabel: sourceNode.label,
+                    nodeType: link.fromType || sourceNode.entityType,
+                    relation: link.relationType,
+                    direction: 'incoming'
+                });
+            }
         });
 
-        outgoers.forEach(edge => {
-            connections.push({
-                nodeId: edge.target().id(),
-                nodeLabel: edge.target().data('label'),
-                nodeType: edge.data('toType') || edge.target().data('entityType'),
-                relation: edge.data('relationType'),
-                direction: 'outgoing'
-            });
+        outgoingLinks.forEach(link => {
+            const targetNode = typeof link.target === 'object' ? link.target :
+                graphData.nodes.find(n => n.id === link.target);
+            if (targetNode) {
+                connections.push({
+                    nodeId: targetNode.id,
+                    nodeLabel: targetNode.label,
+                    nodeType: link.toType || targetNode.entityType,
+                    relation: link.relationType,
+                    direction: 'outgoing'
+                });
+            }
         });
 
         if (connections.length > 0) {
@@ -484,40 +689,69 @@
     function highlightConnections(node) {
         clearHighlights();
 
-        const connectedEdges = node.connectedEdges();
-        const connectedNodes = connectedEdges.connectedNodes();
+        highlightedNodes.add(node);
 
-        // Fade all elements
-        cy.elements().addClass('faded');
+        // Highlight connected nodes and links
+        graphData.links.forEach(link => {
+            const sourceId = typeof link.source === 'object' ? link.source.id : link.source;
+            const targetId = typeof link.target === 'object' ? link.target.id : link.target;
 
-        // Highlight selected node and its connections
-        node.removeClass('faded');
-        connectedNodes.removeClass('faded');
-        connectedEdges.removeClass('faded').addClass('highlighted');
+            if (sourceId === node.id || targetId === node.id) {
+                highlightedLinks.add(link);
+
+                const connectedNode = sourceId === node.id ?
+                    (typeof link.target === 'object' ? link.target : graphData.nodes.find(n => n.id === targetId)) :
+                    (typeof link.source === 'object' ? link.source : graphData.nodes.find(n => n.id === sourceId));
+
+                if (connectedNode) {
+                    highlightedNodes.add(connectedNode);
+                }
+            }
+        });
     }
 
     /**
      * Clear all highlights
      */
     function clearHighlights() {
-        cy.elements().removeClass('faded highlighted');
+        highlightedNodes.clear();
+        highlightedLinks.clear();
+    }
+
+    /**
+     * Update graph visualization
+     */
+    function updateGraph() {
+        if (graph) {
+            graph.nodeColor(graph.nodeColor())
+                .nodeOpacity(graph.nodeOpacity())
+                .linkColor(graph.linkColor())
+                .linkOpacity(graph.linkOpacity())
+                .linkWidth(graph.linkWidth())
+                .linkDirectionalParticles(graph.linkDirectionalParticles());
+        }
     }
 
     /**
      * Navigate to and select a specific node
      */
     function navigateToNode(nodeId) {
-        const node = cy.getElementById(nodeId);
-        if (node.length > 0) {
-            cy.animate({
-                center: { eles: node },
-                zoom: 2
-            }, {
-                duration: 300
-            });
-            node.select();
-            showNodeDetails(node);
-            highlightConnections(node);
+        const node = graphData.nodes.find(n => n.id === nodeId);
+        if (node) {
+            // Move camera to node
+            const distance = 200;
+            const distRatio = 1 + distance / Math.hypot(node.x, node.y, node.z);
+
+            graph.cameraPosition(
+                { x: node.x * distRatio, y: node.y * distRatio, z: node.z * distRatio },
+                node,
+                1000
+            );
+
+            // Select the node
+            setTimeout(() => {
+                handleNodeClick(node);
+            }, 1000);
         }
     }
 
@@ -537,10 +771,9 @@
     function updateLegend() {
         const entityTypes = new Map();
 
-        cy.nodes().forEach(node => {
-            const data = node.data();
-            if (!entityTypes.has(data.entityType)) {
-                entityTypes.set(data.entityType, data.color);
+        graphData.nodes.forEach(node => {
+            if (!entityTypes.has(node.entityType)) {
+                entityTypes.set(node.entityType, node.color);
             }
         });
 
@@ -569,56 +802,84 @@
         const term = searchTerm.toLowerCase().trim();
 
         if (!term) {
-            cy.nodes().removeClass('faded highlighted');
+            clearHighlights();
+            updateGraph();
             return;
         }
 
-        cy.nodes().forEach(node => {
-            const data = node.data();
-            const matches = data.label.toLowerCase().includes(term) ||
-                data.entityType.toLowerCase().includes(term);
+        clearHighlights();
+
+        graphData.nodes.forEach(node => {
+            const matches = node.label.toLowerCase().includes(term) ||
+                node.entityType.toLowerCase().includes(term);
 
             if (matches) {
-                node.removeClass('faded').addClass('highlighted');
-            } else {
-                node.addClass('faded').removeClass('highlighted');
+                highlightedNodes.add(node);
             }
         });
 
-        // Also fade edges not connected to highlighted nodes
-        cy.edges().forEach(edge => {
-            const source = edge.source();
-            const target = edge.target();
-            if (source.hasClass('highlighted') || target.hasClass('highlighted')) {
-                edge.removeClass('faded');
-            } else {
-                edge.addClass('faded');
+        // Also highlight links connected to highlighted nodes
+        graphData.links.forEach(link => {
+            const sourceId = typeof link.source === 'object' ? link.source.id : link.source;
+            const targetId = typeof link.target === 'object' ? link.target.id : link.target;
+            const sourceNode = typeof link.source === 'object' ? link.source : graphData.nodes.find(n => n.id === sourceId);
+            const targetNode = typeof link.target === 'object' ? link.target : graphData.nodes.find(n => n.id === targetId);
+
+            if ((sourceNode && highlightedNodes.has(sourceNode)) ||
+                (targetNode && highlightedNodes.has(targetNode))) {
+                highlightedLinks.add(link);
             }
         });
+
+        updateGraph();
     }
 
     /**
      * Export graph as PNG
      */
     function exportGraph() {
-        const png = cy.png({
-            output: 'blob',
-            bg: '#ffffff',
-            full: true,
-            scale: 2
+        // Capture canvas
+        const canvas = graph.renderer().domElement;
+
+        canvas.toBlob(blob => {
+            const databaseName = elements.databaseSelect.value.replace('.db', '');
+            const timestamp = new Date().toISOString().slice(0, 10);
+            const filename = `memory-graph-3d-${databaseName}-${timestamp}.png`;
+
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = filename;
+            link.click();
+
+            URL.revokeObjectURL(link.href);
+            showToast('Graph exported successfully', 'success');
         });
+    }
 
-        const databaseName = elements.databaseSelect.value.replace('.db', '');
-        const timestamp = new Date().toISOString().slice(0, 10);
-        const filename = `memory-graph-${databaseName}-${timestamp}.png`;
+    /**
+     * Fit graph to view
+     */
+    function fitToView() {
+        if (graph) {
+            graph.zoomToFit(1000, 100);
+        }
+    }
 
-        const link = document.createElement('a');
-        link.href = URL.createObjectURL(png);
-        link.download = filename;
-        link.click();
-
-        URL.revokeObjectURL(link.href);
-        showToast('Graph exported successfully', 'success');
+    /**
+     * Reset view
+     */
+    function resetView() {
+        if (graph) {
+            clearHighlights();
+            selectedNode = null;
+            clearNodeDetails();
+            updateGraph();
+            graph.cameraPosition(
+                { x: 0, y: 0, z: 300 },
+                { x: 0, y: 0, z: 0 },
+                1000
+            );
+        }
     }
 
     /**
@@ -718,7 +979,7 @@
 
         // Layout selection
         elements.layoutSelect.addEventListener('change', function () {
-            if (cy && cy.nodes().length > 0) {
+            if (graph && graphData.nodes.length > 0) {
                 applyLayout(this.value);
             }
         });
@@ -740,14 +1001,12 @@
 
         // Fit button
         elements.fitBtn.addEventListener('click', function () {
-            cy.fit(undefined, 50);
+            fitToView();
         });
 
         // Reset button
         elements.resetBtn.addEventListener('click', function () {
-            cy.reset();
-            clearHighlights();
-            clearNodeDetails();
+            resetView();
         });
 
         // Refresh button
@@ -772,14 +1031,10 @@
 
             switch (evt.key) {
                 case 'f':
-                    if (cy) cy.fit(undefined, 50);
+                    fitToView();
                     break;
                 case 'r':
-                    if (cy) {
-                        cy.reset();
-                        clearHighlights();
-                        clearNodeDetails();
-                    }
+                    resetView();
                     break;
                 case '/':
                     evt.preventDefault();
@@ -798,7 +1053,7 @@
      * Initialize the application
      */
     function init() {
-        initCytoscape();
+        init3DGraph();
         initEventListeners();
     }
 
