@@ -59,6 +59,15 @@
         graph = ForceGraph3D()(container)
             .graphData(graphData)
             .nodeLabel(() => '') // Disable built-in tooltip, use custom
+            .nodeThreeObjectExtend(true) // Extend default node rendering instead of replacing
+            .nodeThreeObject(node => {
+                // Add text sprite above the default sphere
+                const sprite = new SpriteText(node.label);
+                sprite.color = '#333333';
+                sprite.textHeight = 4;
+                sprite.position.y = 12;
+                return sprite;
+            })
             .nodeColor(node => {
                 if (selectedNode === node) return '#FFD700';
                 if (highlightedNodes.has(node)) return '#FF6B6B';
@@ -80,8 +89,12 @@
                 return highlightedLinks.has(link) ? 0.8 : 0.1;
             })
             .linkWidth(link => highlightedLinks.has(link) ? 2 : 1)
-            .linkDirectionalArrowLength(3.5)
+            .linkDirectionalArrowLength(6)
             .linkDirectionalArrowRelPos(1)
+            .linkDirectionalArrowColor(link => {
+                if (highlightedLinks.has(link)) return '#FF6B6B';
+                return '#999999';
+            })
             .linkDirectionalParticles(link => highlightedLinks.has(link) ? 2 : 0)
             .linkDirectionalParticleWidth(2)
             .onNodeClick(handleNodeClick)
@@ -91,20 +104,8 @@
             .d3AlphaDecay(0.02)
             .d3VelocityDecay(0.3)
             .warmupTicks(100)
-            .cooldownTicks(0);
-
-        // Add node labels using sprites (in addition to default spheres)
-        graph.nodeThreeObjectExtend(true) // Extend default node rendering
-            .nodeThreeObject(node => {
-                const sprite = new SpriteText(node.label);
-                sprite.color = '#333333';
-                sprite.textHeight = 4;
-                sprite.position.y = 12;
-                return sprite;
-            });
-
-        // Add background color
-        graph.backgroundColor('#f8f9fa');
+            .cooldownTicks(0)
+            .backgroundColor('#f8f9fa');
     }
 
     /**
