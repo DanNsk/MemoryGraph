@@ -61,21 +61,10 @@
         graph = new ForceGraph3D(container)
             .graphData(graphData)
             .nodeLabel(node => `${node.label} (${node.entityType})`) // Show label on hover
-            .nodeAutoColorBy('entityType') // Auto-color by entity type
-            .nodeVal(node => {
-                console.log('Node:', node.id, 'size:', node.size);
-                return node.size || 20;
-            })
-            .nodeRelSize(6) // Relative size multiplier
-            .nodeOpacity(node => {
-                if (highlightedNodes.size === 0) return 1.0;
-                return highlightedNodes.has(node) || selectedNode === node ? 1.0 : 0.3;
-            })
-            .nodeColor(node => {
-                if (selectedNode === node) return '#FFD700';
-                if (highlightedNodes.has(node)) return '#FF6B6B';
-                return node.color || '#4285F4';
-            })
+            .nodeRelSize(6)
+            .nodeVal(20) // Fixed size for testing
+            .nodeColor('#FF0000') // Bright red for visibility testing
+            .nodeOpacity(1.0) // Full opacity
             .linkLabel(() => '') // Disable built-in link tooltip, use custom
             .linkColor(link => {
                 if (highlightedLinks.has(link)) return '#FF6B6B';
