@@ -56,26 +56,9 @@
         // Create custom tooltip element
         tooltip = createTooltip();
 
-        // Initialize with CSS2DRenderer for HTML labels
-        graph = ForceGraph3D({
-            extraRenderers: [new THREE.CSS2DRenderer()]
-        })(container)
+        graph = ForceGraph3D()(container)
             .graphData(graphData)
             .nodeLabel(() => '') // Disable built-in tooltip, use custom
-            .nodeThreeObject(node => {
-                // Create HTML label for node
-                const nodeEl = document.createElement('div');
-                nodeEl.textContent = node.label;
-                nodeEl.style.color = '#333';
-                nodeEl.style.fontSize = '12px';
-                nodeEl.style.fontWeight = 'bold';
-                nodeEl.style.padding = '2px 6px';
-                nodeEl.style.background = 'rgba(255, 255, 255, 0.8)';
-                nodeEl.style.borderRadius = '3px';
-                nodeEl.style.pointerEvents = 'none';
-                return new THREE.CSS2DObject(nodeEl);
-            })
-            .nodeThreeObjectExtend(true) // Extend AFTER nodeThreeObject
             .nodeColor(node => {
                 if (selectedNode === node) return '#FFD700';
                 if (highlightedNodes.has(node)) return '#FF6B6B';
