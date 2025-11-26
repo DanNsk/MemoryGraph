@@ -56,18 +56,26 @@
         // Create custom tooltip element
         tooltip = createTooltip();
 
-        graph = ForceGraph3D()(container)
+        // Initialize with CSS2DRenderer for HTML labels
+        graph = ForceGraph3D({
+            extraRenderers: [new THREE.CSS2DRenderer()]
+        })(container)
             .graphData(graphData)
             .nodeLabel(() => '') // Disable built-in tooltip, use custom
-            .nodeThreeObjectExtend(true) // Extend default node rendering instead of replacing
             .nodeThreeObject(node => {
-                // Add text sprite above the default sphere
-                const sprite = new SpriteText(node.label);
-                sprite.color = '#333333';
-                sprite.textHeight = 4;
-                sprite.position.y = 12;
-                return sprite;
+                // Create HTML label for node
+                const nodeEl = document.createElement('div');
+                nodeEl.textContent = node.label;
+                nodeEl.style.color = '#333';
+                nodeEl.style.fontSize = '12px';
+                nodeEl.style.fontWeight = 'bold';
+                nodeEl.style.padding = '2px 6px';
+                nodeEl.style.background = 'rgba(255, 255, 255, 0.8)';
+                nodeEl.style.borderRadius = '3px';
+                nodeEl.style.pointerEvents = 'none';
+                return new THREE.CSS2DObject(nodeEl);
             })
+            .nodeThreeObjectExtend(true) // Extend AFTER nodeThreeObject
             .nodeColor(node => {
                 if (selectedNode === node) return '#FFD700';
                 if (highlightedNodes.has(node)) return '#FF6B6B';
@@ -77,8 +85,8 @@
                 if (highlightedNodes.size === 0) return 0.9;
                 return highlightedNodes.has(node) || selectedNode === node ? 0.9 : 0.2;
             })
-            .nodeRelSize(6)
-            .nodeVal(node => node.size || 10)
+            .nodeRelSize(8)
+            .nodeVal(node => node.size || 20)
             .linkLabel(() => '') // Disable built-in link tooltip, use custom
             .linkColor(link => {
                 if (highlightedLinks.has(link)) return '#FF6B6B';
@@ -88,15 +96,15 @@
                 if (highlightedLinks.size === 0) return 0.6;
                 return highlightedLinks.has(link) ? 0.8 : 0.1;
             })
-            .linkWidth(link => highlightedLinks.has(link) ? 2 : 1)
-            .linkDirectionalArrowLength(6)
+            .linkWidth(link => highlightedLinks.has(link) ? 4 : 2)
+            .linkDirectionalArrowLength(8)
             .linkDirectionalArrowRelPos(1)
             .linkDirectionalArrowColor(link => {
                 if (highlightedLinks.has(link)) return '#FF6B6B';
                 return '#999999';
             })
-            .linkDirectionalParticles(link => highlightedLinks.has(link) ? 2 : 0)
-            .linkDirectionalParticleWidth(2)
+            .linkDirectionalParticles(link => highlightedLinks.has(link) ? 4 : 0)
+            .linkDirectionalParticleWidth(4)
             .onNodeClick(handleNodeClick)
             .onNodeHover(handleNodeHover)
             .onLinkHover(handleLinkHover)
