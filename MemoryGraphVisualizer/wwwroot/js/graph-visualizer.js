@@ -77,14 +77,12 @@
             .nodeRelSize(2) // 50% smaller (was 4)
             .nodeVal(node => node.size || 5) // Smaller base size
             .linkLabel(() => '') // Disable built-in link tooltip, use custom
-            .linkColor(link => {
-                if (highlightedLinks.has(link)) return '#FF6B6B';
-                return '#999999';
-            })
-            .linkOpacity(1.0) // Solid links
+            .linkColor('#999999')
+            .linkOpacity(1.0)
             .linkWidth(2)
-            .linkDirectionalArrowLength(3.5)
-            .linkDirectionalArrowRelPos(1) // Arrow at end of link (stops at node edge)
+            .linkDirectionalArrowLength(6) // Make arrows bigger
+            .linkDirectionalArrowRelPos(1) // Position at end
+            .linkDirectionalArrowColor('#999999') // Set arrow color explicitly
             .linkCurvature(0.25)
             .linkDirectionalParticles(link => highlightedLinks.has(link) ? 2 : 0)
             .linkDirectionalParticleWidth(2)
