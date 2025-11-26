@@ -67,24 +67,17 @@
 
         console.log('Using dimensions:', width, 'x', height);
 
-        graph = new ForceGraph3D({
-            extraRenderers: [new THREE.CSS2DRenderer()]
-        })(container)
+        graph = new ForceGraph3D()(container)
             .width(width)
             .height(height)
             .graphData(graphData)
             .nodeLabel(node => `${node.label} (${node.entityType})`) // Show label on hover
             .nodeThreeObject(node => {
-                // Create HTML label
-                const nodeEl = document.createElement('div');
-                nodeEl.textContent = node.label;
-                nodeEl.style.color = '#333';
-                nodeEl.style.fontSize = '12px';
-                nodeEl.style.padding = '2px 6px';
-                nodeEl.style.background = 'rgba(255, 255, 255, 0.8)';
-                nodeEl.style.borderRadius = '3px';
-                nodeEl.className = 'node-label';
-                return new THREE.CSS2DObject(nodeEl);
+                // Create text sprite
+                const sprite = new SpriteText(node.label);
+                sprite.color = '#333333';
+                sprite.textHeight = 8;
+                return sprite;
             })
             .nodeThreeObjectExtend(true)
             .nodeRelSize(6)
