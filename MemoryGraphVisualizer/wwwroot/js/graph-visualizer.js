@@ -56,20 +56,26 @@
         // Create custom tooltip element
         tooltip = createTooltip();
 
+        console.log('Initializing graph with data:', graphData);
+
         graph = new ForceGraph3D(container)
             .graphData(graphData)
-            .nodeLabel(() => '') // Disable built-in tooltip, use custom
+            .nodeLabel(node => `${node.label} (${node.entityType})`) // Show label on hover
+            .nodeAutoColorBy('entityType') // Auto-color by entity type
+            .nodeVal(node => {
+                console.log('Node:', node.id, 'size:', node.size);
+                return node.size || 20;
+            })
+            .nodeRelSize(6) // Relative size multiplier
+            .nodeOpacity(node => {
+                if (highlightedNodes.size === 0) return 1.0;
+                return highlightedNodes.has(node) || selectedNode === node ? 1.0 : 0.3;
+            })
             .nodeColor(node => {
                 if (selectedNode === node) return '#FFD700';
                 if (highlightedNodes.has(node)) return '#FF6B6B';
-                return node.color || '#999';
+                return node.color || '#4285F4';
             })
-            .nodeOpacity(node => {
-                if (highlightedNodes.size === 0) return 0.9;
-                return highlightedNodes.has(node) || selectedNode === node ? 0.9 : 0.2;
-            })
-            .nodeRelSize(8)
-            .nodeVal(node => node.size || 20)
             .linkLabel(() => '') // Disable built-in link tooltip, use custom
             .linkColor(link => {
                 if (highlightedLinks.has(link)) return '#FF6B6B';
@@ -325,6 +331,10 @@
             // Convert data format
             const converted = convertGraphData(data);
             graphData = { nodes: converted.nodes, links: converted.links };
+
+            console.log('Converted graph data:', graphData);
+            console.log('Sample node:', graphData.nodes[0]);
+            console.log('Sample link:', graphData.links[0]);
 
             // Update graph
             if (graph) {
