@@ -57,17 +57,40 @@
         tooltip = createTooltip();
 
         console.log('Initializing graph with data:', graphData);
+        console.log('Container:', container);
         console.log('Container dimensions:', container.offsetWidth, 'x', container.offsetHeight);
+        console.log('Container computed style:', window.getComputedStyle(container).width, 'x', window.getComputedStyle(container).height);
 
-        graph = new ForceGraph3D(container)
-            .width(container.offsetWidth)
-            .height(container.offsetHeight)
+        // Get actual dimensions
+        const width = container.offsetWidth || 800;
+        const height = container.offsetHeight || 600;
+
+        console.log('Using dimensions:', width, 'x', height);
+
+        graph = new ForceGraph3D({
+            extraRenderers: [new THREE.CSS2DRenderer()]
+        })(container)
+            .width(width)
+            .height(height)
             .graphData(graphData)
             .nodeLabel(node => `${node.label} (${node.entityType})`) // Show label on hover
+            .nodeThreeObject(node => {
+                // Create HTML label
+                const nodeEl = document.createElement('div');
+                nodeEl.textContent = node.label;
+                nodeEl.style.color = '#333';
+                nodeEl.style.fontSize = '12px';
+                nodeEl.style.padding = '2px 6px';
+                nodeEl.style.background = 'rgba(255, 255, 255, 0.8)';
+                nodeEl.style.borderRadius = '3px';
+                nodeEl.className = 'node-label';
+                return new THREE.CSS2DObject(nodeEl);
+            })
+            .nodeThreeObjectExtend(true)
             .nodeRelSize(6)
-            .nodeVal(20) // Fixed size for testing
-            .nodeColor('#FF0000') // Bright red for visibility testing
-            .nodeOpacity(1.0) // Full opacity
+            .nodeVal(node => node.size || 20)
+            .nodeAutoColorBy('entityType')
+            .nodeOpacity(1.0)
             .linkLabel(() => '') // Disable built-in link tooltip, use custom
             .linkColor(link => {
                 if (highlightedLinks.has(link)) return '#FF6B6B';
