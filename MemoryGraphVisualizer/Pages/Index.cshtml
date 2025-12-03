@@ -38,10 +38,10 @@
                         <label for="layoutSelect" class="form-label small mb-1">Layout</label>
                         <select id="layoutSelect" class="form-select form-select-sm" disabled>
                             <option value="cose" selected="@(Model.DefaultLayout == "cose")">COSE (Force-directed)</option>
-                            <option value="circle" selected="@(Model.DefaultLayout == "circle")">Circle</option>
-                            <option value="grid" selected="@(Model.DefaultLayout == "grid")">Grid</option>
-                            <option value="breadthfirst" selected="@(Model.DefaultLayout == "breadthfirst")">Breadthfirst</option>
-                            <option value="concentric" selected="@(Model.DefaultLayout == "concentric")">Concentric</option>
+                            <option value="sphere" selected="@(Model.DefaultLayout == "sphere")">Sphere</option>
+                            <option value="cube" selected="@(Model.DefaultLayout == "cube")">3D Grid</option>
+                            <option value="hierarchical" selected="@(Model.DefaultLayout == "hierarchical")">Hierarchical (3D)</option>
+                            <option value="concentric" selected="@(Model.DefaultLayout == "concentric")">Concentric Spheres</option>
                         </select>
                     </div>
 
@@ -147,5 +147,5 @@
 }
 
 @section Scripts {
-    <script src="~/js/graph-visualizer.js"></script>
+    <script type="module" src="~/js/graph-visualizer.js"></script>
 }

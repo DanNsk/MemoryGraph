@@ -51,8 +51,7 @@ public class MemoryGraph
                 label = node.Label,
                 entityType = node.EntityType,
                 observations = node.Observations,
-                color = node.Color,
-                size = node.Size
+                color = node.Color
             }
         });
 

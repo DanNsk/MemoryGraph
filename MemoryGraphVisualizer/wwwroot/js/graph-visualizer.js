@@ -3,6 +3,10 @@
  * 3D Force Graph integration for visualizing knowledge graphs
  */
 
+import ForceGraph3D from 'https://esm.sh/3d-force-graph';
+import SpriteText from 'https://esm.sh/three-spritetext';
+import * as d3 from 'https://esm.sh/d3-force-3d';
+
 (function () {
     'use strict';
 
@@ -13,6 +17,10 @@
     let currentGraph = null;
     let graphData = { nodes: [], links: [] };
 
+    // Entity type color cache
+    let entityTypeColors = new Map();
+    let colorsCaptured = false;
+
     // Selected node
     let selectedNode = null;
     let highlightedNodes = new Set();
@@ -21,6 +29,7 @@
     // Tooltip state
     let tooltip = null;
     let tooltipTimeout = null;
+    let currentMousePos = { x: 0, y: 0 };
 
     // DOM elements
     const elements = {
@@ -41,12 +50,6 @@
         legendPanel: document.getElementById('legendPanel')
     };
 
-    // Entity type colors (default colors)
-    const defaultColors = [
-        '#4285F4', '#DB4437', '#F4B400', '#0F9D58', '#AB47BC',
-        '#00ACC1', '#FF7043', '#9E9D24', '#5C6BC0', '#F06292'
-    ];
-
     /**
      * Initialize the 3D Force Graph instance
      */
@@ -56,59 +59,88 @@
         // Create custom tooltip element
         tooltip = createTooltip();
 
-        // Initialize with CSS2DRenderer for HTML labels
-        graph = ForceGraph3D({
-            extraRenderers: [new THREE.CSS2DRenderer()]
-        })(container)
+        console.log('Initializing graph with data:', graphData);
+
+        // Get actual dimensions
+        const width = container.offsetWidth || 800;
+        const height = container.offsetHeight || 600;
+
+        graph = new ForceGraph3D(container)
+            .width(width)
+            .height(height)
             .graphData(graphData)
-            .nodeLabel(() => '') // Disable built-in tooltip, use custom
+            .nodeAutoColorBy('entityType')
+            .nodeOpacity(1.0)
+            .nodeRelSize(2.5)
+            .nodeVal(5)
+            .nodeResolution(16) // Higher polygon count for smoother spheres (default is 8)
+            // Add text sprites for node labels (billboard, always faces camera)
             .nodeThreeObject(node => {
-                // Create HTML label for node
-                const nodeEl = document.createElement('div');
-                nodeEl.textContent = node.label;
-                nodeEl.style.color = '#333';
-                nodeEl.style.fontSize = '12px';
-                nodeEl.style.fontWeight = 'bold';
-                nodeEl.style.padding = '2px 6px';
-                nodeEl.style.background = 'rgba(255, 255, 255, 0.8)';
-                nodeEl.style.borderRadius = '3px';
-                nodeEl.style.pointerEvents = 'none';
-                return new THREE.CSS2DObject(nodeEl);
+                const sprite = new SpriteText(node.label);
+                sprite.color = '#111111';
+                sprite.textHeight = 2;
+                sprite.fontSize = 180; // Higher resolution for sharper rendering (default: 90)
+                sprite.fontWeight = 'bold';
+                sprite.backgroundColor = '#ffffff';
+                sprite.padding = 0.5;
+                sprite.borderRadius = 1;
+                sprite.borderWidth = 0.2;
+                sprite.borderColor = '#cccccc';
+                sprite.center.y = 2.5; // shift below node (positive moves down)
+                return sprite;
             })
-            .nodeThreeObjectExtend(true) // Extend AFTER nodeThreeObject
-            .nodeColor(node => {
-                if (selectedNode === node) return '#FFD700';
-                if (highlightedNodes.has(node)) return '#FF6B6B';
-                return node.color || '#999';
+            .nodeThreeObjectExtend(true)
+            .linkThreeObjectExtend(true)
+            .linkThreeObject(link => {
+                if (link.relationType) {
+                    const sprite = new SpriteText(link.relationType);
+                    sprite.color = '#000000';
+                    sprite.textHeight = 2;
+                    sprite.fontSize = 180; // Higher resolution for sharper rendering (default: 90)
+                    sprite.fontWeight = 'bold';
+                    sprite.backgroundColor = '#ffffff';
+                    sprite.padding = 0.5;
+                    sprite.borderRadius = 1;
+                    sprite.borderWidth = 0.2;
+                    sprite.borderColor = '#cccccc';
+                    return sprite;
+                }
             })
-            .nodeOpacity(node => {
-                if (highlightedNodes.size === 0) return 0.9;
-                return highlightedNodes.has(node) || selectedNode === node ? 0.9 : 0.2;
+            .linkPositionUpdate((sprite, { start, end }) => {
+                if (sprite) {
+                    const middlePos = Object.assign(...['x', 'y', 'z'].map(c => ({
+                        [c]: start[c] + (end[c] - start[c]) / 2
+                    })));
+                    Object.assign(sprite.position, middlePos);
+                }
             })
-            .nodeRelSize(8)
-            .nodeVal(node => node.size || 20)
-            .linkLabel(() => '') // Disable built-in link tooltip, use custom
-            .linkColor(link => {
-                if (highlightedLinks.has(link)) return '#FF6B6B';
-                return '#999999';
-            })
-            .linkOpacity(link => {
-                if (highlightedLinks.size === 0) return 0.6;
-                return highlightedLinks.has(link) ? 0.8 : 0.1;
-            })
-            .linkWidth(link => highlightedLinks.has(link) ? 4 : 2)
-            .linkDirectionalArrowLength(8)
+            .linkColor(() => '#666666')
+            .linkOpacity(1.0)
+            .linkWidth(0) // 0 width = simple lines instead of tubes
+            .linkDirectionalArrowLength(2)
             .linkDirectionalArrowRelPos(1)
-            .linkDirectionalArrowColor(link => {
-                if (highlightedLinks.has(link)) return '#FF6B6B';
-                return '#999999';
-            })
-            .linkDirectionalParticles(link => highlightedLinks.has(link) ? 4 : 0)
-            .linkDirectionalParticleWidth(4)
+            .linkDirectionalArrowColor(() => '#666666')
+            .linkCurvature(0) // Straight lines
             .onNodeClick(handleNodeClick)
             .onNodeHover(handleNodeHover)
             .onLinkHover(handleLinkHover)
             .onBackgroundClick(handleBackgroundClick)
+            .onEngineStop(() => {
+                // Capture colors from auto-coloring after layout stabilizes (once per data load)
+                if (!colorsCaptured) {
+                    const colorAccessor = graph.nodeColor();
+
+                    entityTypeColors.clear();
+                    graphData.nodes.forEach(node => {
+                        if (!entityTypeColors.has(node.entityType)) {
+                            const color = typeof colorAccessor === 'function' ? colorAccessor(node) : node[colorAccessor];
+                            entityTypeColors.set(node.entityType, color);
+                        }
+                    });
+                    colorsCaptured = true;
+                    updateLegend();
+                }
+            })
             .d3AlphaDecay(0.02)
             .d3VelocityDecay(0.3)
             .warmupTicks(100)
@@ -190,8 +222,11 @@
         tooltip.className = 'graph-tooltip';
         document.body.appendChild(tooltip);
 
-        // Update tooltip position on mouse move
+        // Track mouse position and update tooltip position
         document.addEventListener('mousemove', (e) => {
+            currentMousePos.x = e.clientX;
+            currentMousePos.y = e.clientY;
+
             if (tooltip.style.display === 'block') {
                 tooltip.style.left = (e.clientX + 15) + 'px';
                 tooltip.style.top = (e.clientY + 15) + 'px';
@@ -207,6 +242,10 @@
     function showNodeTooltip(node) {
         const data = node;
         let html = `<strong>${escapeHtml(data.label)}</strong><br><em>${escapeHtml(data.entityType)}</em>`;
+
+        // Set initial position before showing
+        tooltip.style.left = (currentMousePos.x + 15) + 'px';
+        tooltip.style.top = (currentMousePos.y + 15) + 'px';
 
         // Add observations to tooltip
         if (data.observations && data.observations.length > 0) {
@@ -234,6 +273,10 @@
      * Show tooltip for link with connection info
      */
     function showLinkTooltip(link) {
+        // Set initial position before showing
+        tooltip.style.left = (currentMousePos.x + 15) + 'px';
+        tooltip.style.top = (currentMousePos.y + 15) + 'px';
+
         const sourceNode = typeof link.source === 'object' ? link.source :
             graphData.nodes.find(n => n.id === link.source);
         const targetNode = typeof link.target === 'object' ? link.target :
@@ -281,43 +324,41 @@
     /**
      * Convert Cytoscape format to 3D Force Graph format
      */
-    function convertGraphData(cytoscapeData) {
+    function convertGraphData(nodeData) {
         const nodes = [];
         const links = [];
         const nodeMap = new Map();
 
-        // Process nodes
-        if (cytoscapeData.elements && cytoscapeData.elements.nodes) {
-            cytoscapeData.elements.nodes.forEach((nodeElement, index) => {
+        if (nodeData && nodeData.nodes) {
+            // Process nodes
+            nodeData.nodes.forEach((nodeElement, index) => {
                 const data = nodeElement.data;
                 const node = {
                     id: data.id,
                     label: data.label || data.id,
                     entityType: data.entityType || 'Unknown',
-                    color: data.color || defaultColors[index % defaultColors.length],
-                    size: data.size || 10,
                     observations: data.observations || []
                 };
                 nodes.push(node);
                 nodeMap.set(node.id, node);
             });
-        }
+        
 
-        // Process edges/links
-        if (cytoscapeData.elements && cytoscapeData.elements.edges) {
-            cytoscapeData.elements.edges.forEach(edgeElement => {
-                const data = edgeElement.data;
-                const link = {
-                    source: data.source,
-                    target: data.target,
-                    relationType: data.relationType || '',
-                    fromType: data.fromType || '',
-                    toType: data.toType || ''
-                };
-                links.push(link);
-            });
+            // Process edges/links
+            if (nodeData && nodeData.edges) {
+                nodeData.edges.forEach(edgeElement => {
+                    const data = edgeElement.data;
+                    const link = {
+                        source: data.source,
+                        target: data.target,
+                        relationType: data.relationType || '',
+                        fromType: data.fromType || '',
+                        toType: data.toType || ''
+                    };
+                    links.push(link);
+                });
+            }
         }
-
         return { nodes, links, nodeMap };
     }
 
@@ -339,8 +380,15 @@
             currentGraph = data;
 
             // Convert data format
-            const converted = convertGraphData(data);
+            const converted = convertGraphData(data.elements);
             graphData = { nodes: converted.nodes, links: converted.links };
+
+            console.log('Converted graph data:', graphData);
+            console.log('Sample node:', graphData.nodes[0]);
+            console.log('Sample link:', graphData.links[0]);
+
+            // Reset color capture flag for new data
+            colorsCaptured = false;
 
             // Update graph
             if (graph) {
@@ -349,8 +397,11 @@
 
             // Update UI
             updateStats(data.metadata);
-            updateLegend();
             enableControls(true);
+
+            // Apply default layout (legend will update in onEngineStop)
+            const defaultLayout = elements.layoutSelect.value || 'cose';
+            applyLayout(defaultLayout);
 
             // Hide empty state
             elements.emptyState.style.display = 'none';
@@ -375,18 +426,15 @@
         // Configure force simulation based on layout type
         switch (layoutName) {
             case 'cose':
-                graph
-                    .d3AlphaDecay(0.02)
-                    .d3VelocityDecay(0.3)
-                    .d3Force('charge').strength(-120);
+                arrangeCose();
                 break;
-            case 'circle':
-                arrangeInCircle();
+            case 'sphere':
+                arrangeInSphere();
                 break;
-            case 'grid':
-                arrangeInGrid();
+            case 'cube':
+                arrangeInCube();
                 break;
-            case 'breadthfirst':
+            case 'hierarchical':
                 arrangeHierarchical();
                 break;
             case 'concentric':
@@ -399,17 +447,53 @@
     }
 
     /**
-     * Arrange nodes in a circle
+     * Apply COSE (force-directed) layout with positioning forces
      */
-    function arrangeInCircle() {
+    function arrangeCose() {
+        // Reset node positions and velocities
+        graphData.nodes.forEach(node => {
+            node.fx = undefined;
+            node.fy = undefined;
+            node.fz = undefined;
+            node.vx = 0;
+            node.vy = 0;
+            node.vz = 0;
+        });
+
+        graph.graphData(graphData);
+
+        graph
+            .d3AlphaDecay(0.02)
+            .d3VelocityDecay(0.3);
+
+        // Standard charge force for all nodes
+        graph.d3Force('charge').strength(-120);
+        graph.d3Force('link').distance(30);
+
+        // Add positioning forces to pull isolated nodes toward center (0,0,0)
+        // These apply to each node individually, unlike center force which moves the centroid
+        graph.d3Force('x', d3.forceX(0).strength(0.03));
+        graph.d3Force('y', d3.forceY(0).strength(0.03));
+        graph.d3Force('z', d3.forceZ(0).strength(0.03));
+
+        console.log('COSE layout applied with positioning forces - simulation restarting');
+    }
+
+    /**
+     * Arrange nodes on a sphere surface
+     */
+    function arrangeInSphere() {
         const nodes = graphData.nodes;
-        const radius = nodes.length * 10;
+        const radius = Math.max(nodes.length * 5, 50);
 
         nodes.forEach((node, i) => {
-            const angle = (i / nodes.length) * Math.PI * 2;
-            node.fx = Math.cos(angle) * radius;
-            node.fy = Math.sin(angle) * radius;
-            node.fz = 0;
+            // Use golden ratio spiral for even distribution on sphere
+            const phi = Math.acos(1 - 2 * (i + 0.5) / nodes.length);
+            const theta = Math.PI * (1 + Math.sqrt(5)) * i;
+
+            node.fx = radius * Math.sin(phi) * Math.cos(theta);
+            node.fy = radius * Math.sin(phi) * Math.sin(theta);
+            node.fz = radius * Math.cos(phi);
         });
 
         graph.graphData(graphData);
@@ -424,19 +508,21 @@
     }
 
     /**
-     * Arrange nodes in a grid
+     * Arrange nodes in a 3D grid
      */
-    function arrangeInGrid() {
+    function arrangeInCube() {
         const nodes = graphData.nodes;
-        const cols = Math.ceil(Math.sqrt(nodes.length));
+        const cols = Math.ceil(Math.cbrt(nodes.length)); // Cube root for 3D grid
         const spacing = 30;
 
         nodes.forEach((node, i) => {
-            const col = i % cols;
-            const row = Math.floor(i / cols);
-            node.fx = (col - cols / 2) * spacing;
-            node.fy = (row - cols / 2) * spacing;
-            node.fz = 0;
+            const x = i % cols;
+            const y = Math.floor(i / cols) % cols;
+            const z = Math.floor(i / (cols * cols));
+
+            node.fx = (x - cols / 2) * spacing;
+            node.fy = (y - cols / 2) * spacing;
+            node.fz = (z - cols / 2) * spacing;
         });
 
         graph.graphData(graphData);
@@ -463,10 +549,17 @@
         const queue = [];
 
         // Find root nodes (nodes with no incoming edges)
-        const hasIncoming = new Set(links.map(l => l.target));
+        const hasIncoming = new Set(links.map(l =>
+            typeof l.target === 'object' ? l.target.id : l.target
+        ));
         const roots = nodes.filter(n => !hasIncoming.has(n.id));
 
+        console.log('Total nodes:', nodes.length, 'Total links:', links.length);
+        console.log('Nodes with incoming edges:', hasIncoming.size);
+        console.log('Root nodes found:', roots.length);
+
         if (roots.length === 0 && nodes.length > 0) {
+            console.log('No roots found - using first node as root');
             roots.push(nodes[0]);
         }
 
@@ -494,7 +587,7 @@
             });
         }
 
-        // Position nodes by level
+        // Position nodes by level with 3D depth
         const levelGroups = new Map();
         nodes.forEach(node => {
             const level = levels.get(node.id) || 0;
@@ -504,13 +597,24 @@
             levelGroups.get(level).push(node);
         });
 
-        const spacing = 40;
+        const spacing = 80; // Increased for more visible depth
         levelGroups.forEach((levelNodes, level) => {
             levelNodes.forEach((node, i) => {
-                node.fx = (i - levelNodes.length / 2) * spacing;
-                node.fy = level * spacing;
-                node.fz = 0;
+                // Arrange each level in a circle, with depth (Z) based on level
+                const angle = (i / levelNodes.length) * Math.PI * 2;
+                const radius = Math.max(levelNodes.length * 8, 40);
+
+                node.fx = Math.cos(angle) * radius;
+                node.fy = Math.sin(angle) * radius;
+                node.fz = level * spacing; // Depth based on hierarchy level
             });
+        });
+
+        const maxLevel = levels.size > 0 ? Math.max(...levels.values()) : 0;
+        console.log('Hierarchical layout levels:', levelGroups.size, 'Max level:', maxLevel);
+        console.log('Level distribution:');
+        levelGroups.forEach((nodes, level) => {
+            console.log(`  Level ${level}: ${nodes.length} nodes`);
         });
 
         graph.graphData(graphData);
@@ -525,7 +629,7 @@
     }
 
     /**
-     * Arrange nodes in concentric circles
+     * Arrange nodes in concentric spheres based on degree
      */
     function arrangeInConcentric() {
         const nodes = graphData.nodes;
@@ -547,18 +651,21 @@
             (degrees.get(b.id) || 0) - (degrees.get(a.id) || 0)
         );
 
-        // Arrange in concentric circles
+        // Arrange in concentric spheres
         const maxDegree = Math.max(...degrees.values(), 1);
         const baseRadius = 30;
 
         sortedNodes.forEach((node, i) => {
             const degree = degrees.get(node.id) || 0;
             const radius = baseRadius + ((maxDegree - degree) / maxDegree) * 100;
-            const angle = (i / sortedNodes.length) * Math.PI * 2;
 
-            node.fx = Math.cos(angle) * radius;
-            node.fy = Math.sin(angle) * radius;
-            node.fz = 0;
+            // Distribute on sphere surface using golden ratio spiral
+            const phi = Math.acos(1 - 2 * (i + 0.5) / sortedNodes.length);
+            const theta = Math.PI * (1 + Math.sqrt(5)) * i;
+
+            node.fx = radius * Math.sin(phi) * Math.cos(theta);
+            node.fy = radius * Math.sin(phi) * Math.sin(theta);
+            node.fz = radius * Math.cos(phi);
         });
 
         graph.graphData(graphData);
@@ -779,21 +886,13 @@
      * Update entity type legend
      */
     function updateLegend() {
-        const entityTypes = new Map();
-
-        graphData.nodes.forEach(node => {
-            if (!entityTypes.has(node.entityType)) {
-                entityTypes.set(node.entityType, node.color);
-            }
-        });
-
-        if (entityTypes.size === 0) {
+        if (entityTypeColors.size === 0) {
             elements.legendPanel.innerHTML = '<div class="text-muted small text-center">No entity types</div>';
             return;
         }
 
         let html = '';
-        entityTypes.forEach((color, type) => {
+        entityTypeColors.forEach((color, type) => {
             html += `
                 <span class="legend-item">
                     <span class="legend-color" style="background-color: ${color}"></span>
@@ -1055,6 +1154,14 @@
                     filterNodes('');
                     elements.searchInput.blur();
                     break;
+            }
+        });
+
+        // Handle window resize
+        window.addEventListener('resize', function () {
+            if (graph) {
+                const container = document.getElementById('cy');
+                graph.width(container.offsetWidth).height(container.offsetHeight);
             }
         });
     }
