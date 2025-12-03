@@ -1,10 +1,10 @@
 # Memory Graph Visualizer
 
-ASP.NET Core application for visualizing knowledge graphs from the [multi-memory-mcp](https://github.com/DanNsk/multi-memory-mcp) project using Cytoscape.js.
+ASP.NET Core application for visualizing knowledge graphs from the [multi-memory-mcp](https://github.com/DanNsk/multi-memory-mcp) project using 3D Force Graph
 
 ## Features
 
-- **Interactive Graph Visualization** - Cytoscape.js with zoom, pan, and drag-and-drop
+- **Interactive Graph Visualization** - 3D Force Graph with zoom, pan, and drag-and-drop
 - **Multiple Layouts** - COSE (force-directed), Circle, Grid, Breadthfirst, Concentric
 - **Entity Type Coloring** - Automatic color-coding by entity type
 - **Node Details Panel** - View observations, timestamps, sources, and connections
@@ -146,13 +146,13 @@ CREATE TABLE relations (
 - Serilog
 
 **Frontend:**
-- Cytoscape.js 3.28
+- 3d force graph
 - Bootstrap 5.3
 - Vanilla JavaScript (ES6+)
 
 ## Future Enhancements
 
-See [FEATURE_REQUEST_NODE_EDITING.md](FEATURE_REQUEST_NODE_EDITING.md) for planned editing capabilities:
+Future editing capabilities:
 - Add/remove nodes
 - Draw connections between nodes
 - Edit properties and observations
